@@ -27,7 +27,7 @@ fn run_command(command: &str, args: Vec<&str>) -> Output {
     let output = Command::new(command)
         .args(args)
         .output()
-        .expect(format!("failed to run '{}'", commandstr).as_str());
+        .unwrap_or_else(|_| panic!("failed to run '{}'", commandstr));
 
     if !output.status.success() {
         if let Some(code) = &output.status.code() {
@@ -135,7 +135,7 @@ fn main() {
     let mut build_args: Vec<&str> = vec!["build", "--profile", "samply"];
     let binary_name =
         if let Some((idx, _)) = args.iter().enumerate().find(|(_, s)| s.as_str() == "--bin") {
-            if let Some(arg) = args.get(idx + 1).clone() {
+            if let Some(arg) = args.get(idx + 1) {
                 build_args.push("--bin");
                 build_args.push(args[idx + 1].as_str());
                 "target/samply/".to_string() + &arg
