@@ -57,7 +57,6 @@ fn main() {
     // check if cargo.toml exists
     println!("cargo.toml: {}", cargo_toml);
 
-
     // check if profile exists
     // if not add profile
     // if yes print warning
@@ -131,37 +130,53 @@ fn main() {
     };
 
     // parse additional arguments from the command line
-    let args: Vec<String> = std::env::args().collect();
-    let mut build_args: Vec<&str> = vec!["build", "--profile", "samply"];
-    let binary_name =
-        if let Some((idx, _)) = args.iter().enumerate().find(|(_, s)| s.as_str() == "--bin") {
-            if let Some(arg) = args.get(idx + 1) {
-                build_args.push("--bin");
-                build_args.push(args[idx + 1].as_str());
-                "target/samply/".to_string() + &arg
-            } else {
-                println!("--bin requires an argument");
-                std::process::exit(1);
-            }
-        } else if let Some((idx, _)) = args
-            .iter()
-            .enumerate()
-            .find(|(_, s)| s.as_str() == "--example")
-        {
-            let arg = args[idx + 1].clone();
+    let args = std::env::args().collect::<Vec<String>>();
+    let args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
-            build_args.push("--example");
-            build_args.push(args[idx + 1].as_str());
-            "target/samply/examples/".to_string() + &arg
+    // if args contains -- we split into to arg blocks
+    let (add_build_args, bin_args) = {
+        let mut split = args.split(|&s| s == "--");
+        let a = split.next().unwrap().to_owned();
+        let b = split.next().unwrap_or(&[]).to_owned();
+        (a, b)
+    };
+
+    let mut build_args: Vec<&str> = vec!["build", "--profile", "samply"];
+
+    let binary_name = if let Some((idx, _)) = add_build_args
+        .iter()
+        .enumerate()
+        .find(|(_, &s)| s == "--bin")
+    {
+        if let Some(arg) = add_build_args.get(idx + 1) {
+            build_args.push("--bin");
+            build_args.push(add_build_args[idx + 1]);
+            "target/samply/".to_string() + &arg
         } else {
-            "target/samply/".to_string() + &def_binary_name
-        };
+            println!("--bin requires an argument");
+            std::process::exit(1);
+        }
+    } else if let Some((idx, _)) = add_build_args
+        .iter()
+        .enumerate()
+        .find(|(_, &s)| s == "--example")
+    {
+        let arg = add_build_args[idx + 1];
+
+        build_args.push("--example");
+        build_args.push(add_build_args[idx + 1]);
+        "target/samply/examples/".to_string() + arg
+    } else {
+        "target/samply/".to_string() + &def_binary_name
+    };
 
     // run cargo build with the samply profile
     // if it fails print error
     run_command("cargo", build_args);
-    
+
     // run samply on the binary
     // if it fails print error
-    run_command("samply", vec!["record", &binary_name]);
+    let mut samply_args = vec!["record", &binary_name];
+    samply_args.extend(bin_args.iter());
+    run_command("samply", samply_args);
 }
