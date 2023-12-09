@@ -18,7 +18,7 @@ cargo install --git https://github.com/PhilippPolterauer/cargo-samply.git
 
 ## Example Usage
 
-The usage is quite simple, in y
+The usage is quite simple
 
 ```console
 $ cargo new mybinary
@@ -34,3 +34,7 @@ Local server listening at http://127.0.0.1:3001
 
 when opening the server address (127.0.0.1:3001) the output should look like the following.
 ![Samply Web View](https://raw.githubusercontent.com/PhilippPolterauer/cargo-samply/main/doc/samply-web.png)
+
+## Advanced Usecases with custom arguments
+
+cargo samply --example 

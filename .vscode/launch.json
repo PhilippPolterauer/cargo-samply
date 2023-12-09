@@ -1,26 +1,79 @@
 {
+    "version": "0.2.0",
     "configurations": [
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Cargo launch",
+            "name": "Debug executable 'cargo-samply'",
             "cargo": {
                 "args": [
-                    "run",
-                ]
+                    "build",
+                    "--bin=cargo-samply",
+                    "--package=cargo-samply"
+                ],
+                "filter": {
+                    "name": "cargo-samply",
+                    "kind": "bin"
+                }
             },
-            "args": []
+            "args": [],
+            "cwd": "${workspaceFolder}"
         },
-    {
-        "type": "lldb",
-        "request": "launch",
-        "name": "Cargo run",
-        "cargo": {
-            "args": [
-                "run",
-            ]
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'cargo-samply'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=cargo-samply",
+                    "--package=cargo-samply"
+                ],
+                "filter": {
+                    "name": "cargo-samply",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
         },
-        "args": []
-    }
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'hello'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=hello",
+                    "--package=cargo-samply"
+                ],
+                "filter": {
+                    "name": "hello",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'hello'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=hello",
+                    "--package=cargo-samply"
+                ],
+                "filter": {
+                    "name": "hello",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
     ]
 }

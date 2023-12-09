@@ -1,7 +1,6 @@
 use serde::Deserialize;
-
 use std::fs;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::str::{from_utf8, FromStr};
 
 #[derive(Deserialize)]
@@ -18,18 +17,32 @@ fn samply_profile_default() -> toml::Value {
     ]))
 }
 
+fn run_command(command: &str, args: Vec<&str>) -> Output {
+    let mut commandvec = vec![command];
+    for arg in &args {
+        commandvec.push(arg);
+    }
+    let commandstr = &commandvec.join(" ");
+    println!("running '{}'", &commandstr);
+    let output = Command::new(command)
+        .args(args)
+        .output()
+        .expect(format!("failed to run '{}'", commandstr).as_str());
+
+    if !output.status.success() {
+        if let Some(code) = &output.status.code() {
+            println!("'{}' failed with code '{}'", commandstr, code);
+            std::process::exit(*code);
+        }
+    }
+    output
+}
+
 fn main() {
     // check if cargo.toml exists
     // check project path using locate-project
 
-    let output = Command::new("cargo")
-        .arg("locate-project")
-        .output()
-        .expect("failed to run 'cargo locate-project'");
-    if !output.status.success() {
-        println!("'cargo locate-project' failed");
-        std::process::exit(output.status.code().unwrap());
-    }
+    let output = run_command("cargo", vec!["locate-project"]);
     let result: Result<LocateProject, serde_json::Error> =
         serde_json::from_str(from_utf8(&output.stdout).unwrap());
 
@@ -81,34 +94,72 @@ fn main() {
         .complete_from_path(std::path::Path::new(&cargo_toml))
         .expect("completing manifest failed");
 
-    let binary_name = manifest
-        .bin
-        .first()
-        .expect("no binary found in 'Cargo.toml'")
-        .name
-        .clone()
-        .expect("should never fail");
+    // first we find the available binaries
+    let binaries = manifest.bin;
+    if binaries.is_empty() {
+        println!("no binary found in 'Cargo.toml'");
+        std::process::exit(1);
+    }
+    // if length equal to one then we use it
+    let def_binary_name = if binaries.len() == 1 {
+        binaries.first().unwrap().name.clone().unwrap()
+    } else {
+        let name = manifest
+            .package
+            .expect("no package section")
+            .default_run
+            .expect("no default-run specified");
+
+        // we look for the binary with the correct name and error if we can't find it
+        if let Some(binary) = binaries.iter().find_map(|s| {
+            if let Some(n) = &s.name {
+                if n == &name {
+                    s.name.clone()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }) {
+            binary
+        } else {
+            println!("did not find binary '{}'", name);
+            std::process::exit(1);
+        }
+    };
+
+    // parse additional arguments from the command line
+    let args: Vec<String> = std::env::args().collect();
+    let mut build_args: Vec<&str> = vec!["build", "--profile", "samply"];
+    let binary_name =
+        if let Some((idx, _)) = args.iter().enumerate().find(|(_, s)| s.as_str() == "--bin") {
+            if let Some(arg) = args.get(idx + 1).clone() {
+                build_args.push("--bin");
+                build_args.push(args[idx + 1].as_str());
+                "target/samply/".to_string() + &arg
+            } else {
+                println!("--bin requires an argument");
+                std::process::exit(1);
+            }
+        } else if let Some((idx, _)) = args
+            .iter()
+            .enumerate()
+            .find(|(_, s)| s.as_str() == "--example")
+        {
+            let arg = args[idx + 1].clone();
+
+            build_args.push("--example");
+            build_args.push(args[idx + 1].as_str());
+            "target/samply/examples/".to_string() + &arg
+        } else {
+            "target/samply/".to_string() + &def_binary_name
+        };
 
     // run cargo build with the samply profile
     // if it fails print error
-
-    Command::new("cargo")
-        .args(["build", "--profile", "samply"])
-        .status()
-        .expect("failed to run 'cargo build --profile samply'");
-
+    run_command("cargo", build_args);
     // run samply on the binary
     // if it fails print error
-    Command::new("samply")
-        .args([
-            "record".to_string(),
-            "target/samply/".to_string() + binary_name.as_str(),
-        ])
-        .status()
-        .unwrap_or_else(|_| {
-            panic!(
-                "failed to run 'samply target/samply/{}'",
-                binary_name.as_str()
-            )
-        });
+    run_command("samply", vec!["record", &binary_name]);
 }
