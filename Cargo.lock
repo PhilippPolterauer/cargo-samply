@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "cargo-samply"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cargo_toml",
  "json",

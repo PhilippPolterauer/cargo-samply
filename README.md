@@ -1,16 +1,22 @@
 # Cargo Samply
 
-a simple integration binary that automates the process of running cargo build with a certain profile and samply afterwards.
+a simple integration binary that automates the process of running `cargo build` with a certain profile and `samply` afterwards.
+It installs [samply](https://github.com/mstange/samply) if it is not available using `cargo install`.
 
-## installation
+## Installation
 
-for now you can install it via
+for now you can install it from crates.io or directly from github.com
 
 ```bash
+# crates.io
+cargo install cargo-samply
+# or from git
 cargo install --git https://github.com/PhilippPolterauer/cargo-samply.git
 ```
 
 ## Example Usage
+
+The usage is quite simple, in y
 
 ```console
 $ cargo new mybinary

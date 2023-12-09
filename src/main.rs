@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use serde_json;
-use std::fs;
 use std::process::Command;
 use std::str::{from_utf8, FromStr};
+use std::{fs, result};
 use toml;
 
 #[derive(Deserialize)]
@@ -27,9 +27,20 @@ fn main() {
         .arg("locate-project")
         .output()
         .expect("failed to run 'cargo locate-project'");
-
-    let result: LocateProject = serde_json::from_str(from_utf8(&output.stdout).unwrap()).unwrap();
-    let cargo_toml = result.root;
+    if !output.status.success() {
+        println!("'cargo locate-project' failed");
+        std::process::exit(output.status.code().unwrap());
+    }
+    let result: Result<LocateProject, serde_json::Error> =
+        serde_json::from_str(from_utf8(&output.stdout).unwrap());
+    
+    let cargo_toml: String;
+    if let Ok(result) = result {
+        cargo_toml = result.root;
+    } else {
+        println!("cargo locate-project: failed");
+        std::process::exit(1);
+    }
 
     // check if cargo.toml exists
     println!("cargo.toml: {}", cargo_toml);
