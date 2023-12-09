@@ -1,0 +1,22 @@
+[package]
+name = "cargo-samply"
+edition = "2021"
+version = "0.1.0"
+
+[dependencies]
+cargo_toml = "0.17.1"
+json = "0.12.4"
+serde = "1.0.193"
+toml = "0.8.8"
+
+[profile.samply]
+inherits = "release"
+debug = true
+
+
+
+[[bin]]
+path = "src/main.rs"
+name = "cargo-samply"
+edition = "2021"
+required-features = []

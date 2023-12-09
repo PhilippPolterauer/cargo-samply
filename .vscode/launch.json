@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Cargo launch",
+            "cargo": {
+                "args": [
+                    "run",
+                ]
+            },
+            "args": []
+        },
+    {
+        "type": "lldb",
+        "request": "launch",
+        "name": "Cargo run",
+        "cargo": {
+            "args": [
+                "run",
+            ]
+        },
+        "args": []
+    }
+    ]
+}
