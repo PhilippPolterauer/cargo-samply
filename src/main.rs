@@ -4,7 +4,6 @@ use std::fs;
 use std::process::Command;
 use std::str::{from_utf8, FromStr};
 
-
 #[derive(Deserialize)]
 struct LocateProject {
     root: String,
@@ -83,7 +82,8 @@ fn main() {
         .expect("completing manifest failed");
 
     let binary_name = manifest
-        .bin.first()
+        .bin
+        .first()
         .expect("no binary found in 'Cargo.toml'")
         .name
         .clone()
@@ -105,6 +105,10 @@ fn main() {
             "target/samply/".to_string() + binary_name.as_str(),
         ])
         .status()
-        .unwrap_or_else(|_| panic!("failed to run 'samply target/samply/{}'",
-                binary_name.as_str()));
+        .unwrap_or_else(|_| {
+            panic!(
+                "failed to run 'samply target/samply/{}'",
+                binary_name.as_str()
+            )
+        });
 }
