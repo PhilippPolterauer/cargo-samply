@@ -56,7 +56,8 @@ fn main() {
 
     // check if cargo.toml exists
     println!("cargo.toml: {}", cargo_toml);
-    // let file = File::open(root).expect("cargo.toml does not exist");
+
+
     // check if profile exists
     // if not add profile
     // if yes print warning
@@ -159,6 +160,7 @@ fn main() {
     // run cargo build with the samply profile
     // if it fails print error
     run_command("cargo", build_args);
+    
     // run samply on the binary
     // if it fails print error
     run_command("samply", vec!["record", &binary_name]);

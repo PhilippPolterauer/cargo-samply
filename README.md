@@ -37,4 +37,41 @@ when opening the server address (127.0.0.1:3001) the output should look like the
 
 ## Advanced Usecases with custom arguments
 
-cargo samply --example 
+there is a test package at `test/testpackage/` which can be used for highlighting the following options.
+
+`cargo-samply` respects the default-run argument:
+
+```console
+$ cargo samply
+running 'cargo locate-project'
+cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
+running 'cargo build --profile samply'
+running 'samply record target/samply/main'
+```
+
+`cargo-samply` can be targeted at certain binaries e.g. `--example`
+
+```console
+$ cargo samply --example hello
+running 'cargo locate-project'
+cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
+running 'cargo build --profile samply --example hello'
+running 'samply record target/samply/examples/hello'
+```
+
+or `--bin`
+
+```console
+$ cargo samply --bin another
+running 'cargo locate-project'
+cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
+running 'cargo build --profile samply --bin another'
+running 'samply record target/samply/another'
+```
+
+additional arguments can be passed after `--`
+
+```console
+$ cargo samply --bin another -- 'new text'
+
+```
