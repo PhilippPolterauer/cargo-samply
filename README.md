@@ -10,7 +10,7 @@ for now you can install it via
 cargo install --git https://github.com/PhilippPolterauer/cargo-samply.git
 ```
 
-## Example Useage
+## Example Usage
 
 ```console
 $ cargo new mybinary
@@ -24,5 +24,5 @@ Hello, world!
 Local server listening at http://127.0.0.1:3001
 ```
 
-when opening the server adress (127.0.0.1:3001) the output should look like the following.
+when opening the server address (127.0.0.1:3001) the output should look like the following.
 ![Samply Web View](doc/samply-web.png)

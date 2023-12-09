@@ -1,5 +1,3 @@
-// i want to write a programm that adds a new profile to cargo.toml if it does not exist
-// if it adds a profile it should put out a warning
 use serde::Deserialize;
 use serde_json;
 use std::fs;
@@ -23,7 +21,7 @@ fn samply_profile_default() -> toml::Value {
 
 fn main() {
     // check if cargo.toml exists
-    // check projct path using locate-project
+    // check project path using locate-project
 
     let output = Command::new("cargo")
         .arg("locate-project")

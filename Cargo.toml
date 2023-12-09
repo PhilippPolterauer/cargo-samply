@@ -2,6 +2,10 @@
 name = "cargo-samply"
 edition = "2021"
 version = "0.1.0"
+license = "MIT"
+authors = ["Philipp Polterauer <philipp.polterauer@gmail.com>"]
+description = "A cargo subcommand to automate the process of running samply for the project binary"
+readme = "README.md"
 
 [dependencies]
 cargo_toml = "0.17.1"
