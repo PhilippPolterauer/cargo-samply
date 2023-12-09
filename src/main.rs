@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use std::fs;
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Output};
 use std::str::{from_utf8, FromStr};
 
@@ -16,14 +17,21 @@ fn samply_profile_default() -> toml::Value {
         ("debug".to_string(), debug),
     ]))
 }
-
-fn run_command(command: &str, args: Vec<&str>) -> Output {
-    let mut commandvec = vec![command];
-    for arg in &args {
-        commandvec.push(arg);
+fn print_command(command: &str, args: Vec<&str>) -> String {
+    let mut commandstr = command.to_owned();
+    for arg in args {
+        commandstr += " ";
+        if arg.contains(' ') {
+            commandstr += &format!("\"{}\"", arg);
+        } else {
+            commandstr += arg;
+        };
     }
-    let commandstr = &commandvec.join(" ");
     println!("running '{}'", &commandstr);
+    commandstr
+}
+fn run_command(command: &str, args: Vec<&str>) -> Output {
+    let commandstr = print_command(command, args.clone());
     let output = Command::new(command)
         .args(args)
         .output()
@@ -178,5 +186,6 @@ fn main() {
     // if it fails print error
     let mut samply_args = vec!["record", &binary_name];
     samply_args.extend(bin_args.iter());
-    run_command("samply", samply_args);
+    print_command("samply", samply_args.clone());
+    Command::new("samply").args(samply_args).exec();
 }

@@ -73,5 +73,9 @@ additional arguments can be passed after `--`
 
 ```console
 $ cargo samply --bin another -- 'new text'
-
+running 'cargo locate-project'
+cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
+running 'cargo build --profile samply --bin another'
+running 'samply record target/samply/another "new text"'
+Hello, new text!
 ```
