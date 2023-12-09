@@ -1,5 +1,7 @@
 # Cargo Samply
 
+[![Continuous integration](https://github.com/PhilippPolterauer/cargo-samply/actions/workflows/ci.yml/badge.svg)](https://github.com/PhilippPolterauer/cargo-samply/actions/workflows/ci.yml)
+
 a simple integration binary that automates the process of running `cargo build` with a certain profile and `samply` afterwards.
 It installs [samply](https://github.com/mstange/samply) if it is not available using `cargo install`.
 
