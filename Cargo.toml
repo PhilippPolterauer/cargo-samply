@@ -1,11 +1,14 @@
 [package]
 name = "cargo-samply"
 edition = "2021"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 authors = ["Philipp Polterauer <philipp.polterauer@gmail.com>"]
 description = "A cargo subcommand to automate the process of running samply for the project binary"
 readme = "README.md"
+repository = "https://github.com/PhilippPolterauer/cargo-samply.git"
+homepage = "https://github.com/PhilippPolterauer/cargo-samply.git"
+documentation = "https://github.com/PhilippPolterauer/cargo-samply.git"
 
 [dependencies]
 cargo_toml = "0.17.1"
