@@ -1,9 +1,9 @@
 use serde::Deserialize;
-use serde_json;
+
 use std::fs;
 use std::process::Command;
 use std::str::{from_utf8, FromStr};
-use toml;
+
 
 #[derive(Deserialize)]
 struct LocateProject {
@@ -50,7 +50,7 @@ fn main() {
     // if yes print warning
 
     let binding: String = fs::read_to_string(&cargo_toml)
-        .expect(format!("failed reading '{}'", &cargo_toml).as_str());
+        .unwrap_or_else(|_| panic!("failed reading '{}'", &cargo_toml));
     let cargo_toml_content = binding.as_str();
 
     let mut manifest_toml = toml::Table::from_str(cargo_toml_content).unwrap();
@@ -83,9 +83,7 @@ fn main() {
         .expect("completing manifest failed");
 
     let binary_name = manifest
-        .bin
-        .iter()
-        .next()
+        .bin.first()
         .expect("no binary found in 'Cargo.toml'")
         .name
         .clone()
@@ -107,11 +105,6 @@ fn main() {
             "target/samply/".to_string() + binary_name.as_str(),
         ])
         .status()
-        .expect(
-            format!(
-                "failed to run 'samply target/samply/{}'",
-                binary_name.as_str()
-            )
-            .as_str(),
-        );
+        .unwrap_or_else(|_| panic!("failed to run 'samply target/samply/{}'",
+                binary_name.as_str()));
 }
