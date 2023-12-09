@@ -7,16 +7,12 @@ version = "0.1.0"
 cargo_toml = "0.17.1"
 json = "0.12.4"
 serde = "1.0.193"
-toml = "0.8.8"
+serde_json = "1.0.108"
+
+[dependencies.toml]
+version = "0.8.8"
+features = ["preserve_order"]
 
 [profile.samply]
 inherits = "release"
 debug = true
-
-
-
-[[bin]]
-path = "src/main.rs"
-name = "cargo-samply"
-edition = "2021"
-required-features = []

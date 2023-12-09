@@ -1,19 +1,24 @@
 // i want to write a programm that adds a new profile to cargo.toml if it does not exist
 // if it adds a profile it should put out a warning
-use cargo_toml::{DebugSetting, Manifest, Profile, Profiles};
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::Write;
-use std::process::Command;
-use std::str::from_utf8;
-use toml;
 use serde::Deserialize;
-
-struct SamplyProfile {}
+use serde_json;
+use std::fs;
+use std::process::Command;
+use std::str::{from_utf8, FromStr};
+use toml;
 
 #[derive(Deserialize)]
 struct LocateProject {
     root: String,
+}
+
+fn samply_profile_default() -> toml::Value {
+    let inherits = toml::Value::String("release".to_owned());
+    let debug = toml::Value::Boolean(true);
+    toml::Value::Table(toml::Table::from_iter(vec![
+        ("inherits".to_string(), inherits),
+        ("debug".to_string(), debug),
+    ]))
 }
 
 fn main() {
@@ -24,14 +29,9 @@ fn main() {
         .arg("locate-project")
         .output()
         .expect("failed to run 'cargo locate-project'");
-    dbg!(&output);
-    // let result = parse(from_utf8(&output.stdout).unwrap())
-    //     .expect("failed to parse output of 'cargo locate-project'");
-    // parse json output for 'root' key
-    // let root = ;
-    let result: LocateProject = toml::from_str(from_utf8(&output.stdout).unwrap()).unwrap();
+
+    let result: LocateProject = serde_json::from_str(from_utf8(&output.stdout).unwrap()).unwrap();
     let cargo_toml = result.root;
-    println!("root: {}", cargo_toml);
 
     // check if cargo.toml exists
     println!("cargo.toml: {}", cargo_toml);
@@ -39,48 +39,70 @@ fn main() {
     // check if profile exists
     // if not add profile
     // if yes print warning
-    let mut manifest = Manifest::from_path(&cargo_toml)
-        .expect(format!("error reading manifest from '{}'", cargo_toml).as_str());
-    dbg!(&manifest);
 
-    let samply = manifest.profile.custom.get("samply");
+    let binding: String = fs::read_to_string(&cargo_toml)
+        .expect(format!("failed reading '{}'", &cargo_toml).as_str());
+    let cargo_toml_content = binding.as_str();
 
-    // let profile = if manifest.profile.custom.contains_key("samply") {
-    //     manifest.profile.custom.get("samply")
-    // } else {
-    //     manifest.profile.custom.insert(
-    //         "samply".to_owned(),
-    //         Profile {
-    //             debug: Some(DebugSetting::Full),
-    //             build_override: None,
-    //             codegen_units: None,
-    //             incremental: None,
-    //             lto: None,
-    //             panic: None,
-    //             overflow_checks: None,
-    //             rpath: None,
-    //             debug_assertions: None,
-    //             strip: None,
-    //             split_debuginfo: None,
-    //             opt_level: None,
-    //             package: BTreeMap::from_iter(vec![(
-    //                 "include".to_owned(),
-    //                 vec!["samply".to_owned()],
-    //             )]),
-    //         },
-    //     );
-    //     manifest.profile.custom.get("samply")
-    // };
+    let mut manifest_toml = toml::Table::from_str(cargo_toml_content).unwrap();
 
-    // profile.unwrap().inherit_from = Some("dev".to_owned());
+    let profile = manifest_toml
+        .entry("profile")
+        .or_insert(toml::Value::Table(toml::Table::new()));
 
-    let serialized = toml::to_string(&manifest).unwrap();
-    // let file = File::create(cargo_toml);
-    // match file {
-    //     Ok(mut file) => {
-    //         file.write_all(serialized.as_bytes())
-    //             .expect("error writing to file");
-    //     }
-    //     Err(e) => println!("error writing to file: {}", e),
-    // }
+    profile
+        .as_table_mut()
+        .expect("profile is not a table")
+        .entry("samply")
+        .or_insert(samply_profile_default())
+        .as_table()
+        .expect("should never fail");
+
+    let manifest = manifest_toml.to_string();
+
+    if manifest != cargo_toml_content {
+        println!("'samply' profile was added to 'Cargo.toml'");
+        fs::write(&cargo_toml, manifest).expect("writing to 'Cargo.toml' failed");
+    }
+
+    // find the currently build binary name
+    let mut manifest =
+        cargo_toml::Manifest::from_str(cargo_toml_content).expect("failed parsing 'Cargo.toml'");
+
+    manifest
+        .complete_from_path(std::path::Path::new(&cargo_toml))
+        .expect("completing manifest failed");
+
+    let binary_name = manifest
+        .bin
+        .iter()
+        .next()
+        .expect("no binary found in 'Cargo.toml'")
+        .name
+        .clone()
+        .expect("should never fail");
+
+    // run cargo build with the samply profile
+    // if it fails print error
+
+    Command::new("cargo")
+        .args(["build", "--profile", "samply"])
+        .status()
+        .expect("failed to run 'cargo build --profile samply'");
+
+    // run samply on the binary
+    // if it fails print error
+    Command::new("samply")
+        .args([
+            "record".to_string(),
+            "target/samply/".to_string() + binary_name.as_str(),
+        ])
+        .status()
+        .expect(
+            format!(
+                "failed to run 'samply target/samply/{}'",
+                binary_name.as_str()
+            )
+            .as_str(),
+        );
 }
