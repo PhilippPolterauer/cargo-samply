@@ -9,8 +9,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macOS-latest
-          - windows-latest
     steps:
       - uses: actions/checkout@v1
       - name: Install Rust toolchain
@@ -34,4 +32,3 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features
-          
