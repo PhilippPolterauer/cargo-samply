@@ -113,7 +113,12 @@ fn main() {
         .package
         .expect("no package section")
         .default_run
-        .unwrap_or(binaries.first().and_then(|s| s.name.clone()).expect("no binaries in the package"));
+        .unwrap_or(
+            binaries
+                .first()
+                .and_then(|s| s.name.clone())
+                .expect("no binaries in the package"),
+        );
 
     // parse additional arguments from the command line
     let args = std::env::args().collect::<Vec<String>>();
