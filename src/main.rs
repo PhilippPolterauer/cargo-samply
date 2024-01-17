@@ -109,39 +109,17 @@ fn main() {
         std::process::exit(1);
     }
     // if length equal to one then we use it
-    let def_binary_name = if binaries.len() == 1 {
-        binaries.first().unwrap().name.clone().unwrap()
-    } else {
-        let name = manifest
-            .package
-            .expect("no package section")
-            .default_run
-            .expect("no default-run specified");
-
-        // we look for the binary with the correct name and error if we can't find it
-        if let Some(binary) = binaries.iter().find_map(|s| {
-            if let Some(n) = &s.name {
-                if n == &name {
-                    s.name.clone()
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        }) {
-            binary
-        } else {
-            println!("did not find binary '{}'", name);
-            std::process::exit(1);
-        }
-    };
+    let def_binary_name = manifest
+        .package
+        .expect("no package section")
+        .default_run
+        .unwrap_or(binaries.first().and_then(|s| s.name.clone()).expect("no binaries in the package"));
 
     // parse additional arguments from the command line
     let args = std::env::args().collect::<Vec<String>>();
     let args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
-    // if args contains -- we split into to arg blocks
+    // if args contains -- we split into two arg blocks
     let (add_build_args, bin_args) = {
         let mut split = args.split(|&s| s == "--");
         let a = split.next().unwrap().to_owned();
