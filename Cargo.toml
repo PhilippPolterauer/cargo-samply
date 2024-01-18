@@ -11,16 +11,13 @@ homepage = "https://github.com/PhilippPolterauer/cargo-samply.git"
 documentation = "https://github.com/PhilippPolterauer/cargo-samply.git"
 
 [dependencies]
-cargo_toml = "0.17.1"
-json = "0.12.4"
-serde = "1.0.193"
-serde_json = "1.0.108"
-
-[dependencies.toml]
-version = "0.8.8"
-features = ["preserve_order"]
+cargo_toml = "0.18.0"
+thiserror = "1.0.56"
+clap = { version = "4.4.12", features = ["derive"] }
+log = { version = "0.4", features = ["std"] }
+toml = { version = "0.8.8" }
+ocli = "0.1.0"
 
 [profile.samply]
 inherits = "release"
 debug = true
-
