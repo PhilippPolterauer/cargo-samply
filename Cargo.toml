@@ -1,7 +1,7 @@
 [package]
 name = "cargo-samply"
 edition = "2021"
-version = "0.1.6"
+version = "0.2.0"
 license = "MIT"
 authors = ["Philipp Polterauer <philipp.polterauer@gmail.com>"]
 description = "A cargo subcommand to automate the process of running samply for project binaries"
@@ -21,3 +21,8 @@ ocli = "0.1.0"
 [profile.samply]
 inherits = "release"
 debug = true
+
+[dev-dependencies]
+regex = "1.10.2"
+trycmd = "0.14.20"
+which = { version = "6.0.0", features = ["regex"] }

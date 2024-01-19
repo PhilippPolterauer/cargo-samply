@@ -15,11 +15,20 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: stable
           override: true
           components: rustfmt, clippy
 
-      - name: Run rustfmt
+      - name: Run build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      # - name: Run tests
+      #   run: cargo test --release
+
+      - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         # No need to execute it multiple times
         if: matrix.os == 'ubuntu-latest'
@@ -32,3 +41,6 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features
+
+
+

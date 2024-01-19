@@ -1,8 +1,9 @@
 [package]
-name = "testpackage"
+name = "examples-package"
 version = "0.1.0"
 edition = "2021"
 publish = false
+default-run = "main"
 
 [[bin]]
 name = "another"

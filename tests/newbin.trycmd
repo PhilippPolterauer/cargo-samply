@@ -1,0 +1,7 @@
+```console
+$ cargo-samply 
+? 1
+'samply' profile was added to 'Cargo.toml'
+error: No binary found in 'Cargo.toml'
+
+```
