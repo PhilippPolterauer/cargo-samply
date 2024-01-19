@@ -13,7 +13,8 @@ fn trycmd() {
         .register_bin("cargo", trycmd::schema::Bin::Path(which("cargo").unwrap()));
 
     for pth in cargo_bins.iter().filter(|pth| {
-        !pth.extension().is_some_and(|pth| pth == "exe") && pth.file_name().is_some_and(|p| p !="cargo-samply")
+        !pth.extension().is_some_and(|pth| pth == "exe")
+            && pth.file_name().is_some_and(|p| p != "cargo-samply")
     }) {
         println!("{}", pth.file_name().unwrap().to_string_lossy());
         t = t.register_bin(
