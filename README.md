@@ -44,51 +44,12 @@ Options:
 The usage is quite simple
 
 ```console
-$ cd tests
+$ cargo install cargo-samply
 $ cargo new mybinary
      Created binary (application) `mybinary` package
-
+$ cd mybinary
+$ cargo samply
 ```
 
 when opening the server address (127.0.0.1:3001) the output should look like the following.
 ![Samply Web View](https://raw.githubusercontent.com/PhilippPolterauer/cargo-samply/main/doc/samply-web.png)
-
-## Advanced Usecases with custom arguments
-
-there is a test package at `test/testpackage/` which can be used for highlighting the following options.
-
-`cargo-samply` respects the default-run argument:
-<!-- 
-```console
-$ cargo samply
-? 1
-error: Failed to locate project
-
-```
-
-`cargo-samply` can be targeted at certain binaries e.g. `--example`
-
-```console
-$ cargo samply --example hello
-? 1
-error: Failed to locate project
-
-```
-
-or `--bin`
-
-```console
-$ cargo samply --bin another
-? 1
-error: Failed to locate project
-
-```
-
-additional arguments can be passed after `--`
-
-```console
-$ cargo samply --bin another -- 'new text'
-? 1
-error: Failed to locate project
-
-``` -->
