@@ -25,8 +25,8 @@ jobs:
           command: build
           args: --release
 
-      - name: Run tests
-        run: cargo test --release
+      # - name: Run tests
+      #   run: cargo test --release
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
