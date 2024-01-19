@@ -26,6 +26,7 @@ fn run() -> error::Result<()> {
     } else {
         log::Level::Info
     })?;
+
     if cli.bin.is_some() && cli.example.is_some() {
         return Err(error::Error::BinAndExampleMutuallyExclusive);
     }
@@ -66,8 +67,24 @@ fn run() -> error::Result<()> {
     // run samply on the binary
     // if it fails print error
     let root = cargo_toml.parent().unwrap();
-    let bin_path = root.join("target").join(&cli.profile).join(&bin_name);
-    Command::new("samply").arg("record").arg(bin_path).call()?;
+    let bin_path = if bin_opt == "--bin" {
+        root.join("target").join(&cli.profile).join(&bin_name)
+    } else {
+        root.join("target")
+            .join(&cli.profile)
+            .join("examples")
+            .join(&bin_name)
+    };
+
+    if !cli.no_samply {
+        Command::new("samply")
+            .arg("record")
+            .arg(bin_path)
+            .args(cli.args)
+            .call()?;
+    } else {
+        Command::new(bin_path).args(cli.args).call()?;
+    }
 
     Ok(())
 }

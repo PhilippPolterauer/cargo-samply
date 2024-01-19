@@ -1,0 +1,10 @@
+```console
+$ cargo-samply -v --no-samply
+debug: running "cargo" with args: ["locate-project", "--workspace", "--message-format", "plain"]
+debug: cargo.toml: "[CWD]/Cargo.toml"
+debug: running "cargo" with args: ["build", "--profile", "samply", "--bin", "bin"]
+    Finished samply [optimized + debuginfo] target(s) in [..]s
+debug: running "[CWD]/target/samply/bin" with args: []
+Hello, world!
+
+```

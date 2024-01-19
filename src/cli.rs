@@ -31,4 +31,8 @@ pub struct Config {
     /// Print extra output to help debug problems
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
+
+    /// Disable the automatic samply start
+    #[arg(short, long, default_value_t = false)]
+    pub no_samply: bool,
 }

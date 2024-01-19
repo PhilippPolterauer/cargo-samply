@@ -1,0 +1,6 @@
+[workspace]
+package = { name = "bin" }
+
+[profile.samply]
+inherits = "release"
+debug = true

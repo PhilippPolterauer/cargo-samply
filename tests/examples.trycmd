@@ -1,0 +1,6 @@
+```console
+$ cargo-samply --no-samply --example hello
+    Finished samply [optimized + debuginfo] target(s) in [..]s
+Hello, world!
+
+```

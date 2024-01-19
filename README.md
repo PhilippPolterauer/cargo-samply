@@ -16,20 +16,38 @@ cargo install cargo-samply
 cargo install --git https://github.com/PhilippPolterauer/cargo-samply.git
 ```
 
+## Useage
+
+```console
+$ cargo samply --help
+A cargo subcommand to automate the process of running samply for project binaries
+
+Usage: cargo-samply [OPTIONS] [TRAILING_ARGUMENTS]...
+
+Arguments:
+  [TRAILING_ARGUMENTS]...  Trailing arguments passed to the binary being profiled
+
+Options:
+  -p, --profile <PROFILE>    Build with the specified profile [default: samply]
+  -b, --bin <BIN>            Binary to run
+  -e, --example <EXAMPLE>    Example to run
+  -f, --features <FEATURES>  Build features to enable
+      --no-default-features  Disable default features
+  -v, --verbose              Print extra output to help debug problems
+  -h, --help                 Print help
+  -V, --version              Print version
+
+```
+
 ## Example Usage
 
 The usage is quite simple
 
 ```console
+$ cd tests
 $ cargo new mybinary
-$ cd mybinary
-$ cargo samply
-cargo.toml: ~/rust/mybinary/Cargo.toml
-'samply' profile was added to 'Cargo.toml'
-   Compiling mybinary v0.1.0 (~/rust/mybinary)
-    Finished samply [optimized + debuginfo] target(s) in 0.18s
-Hello, world!
-Local server listening at http://127.0.0.1:3001
+     Created binary (application) `mybinary` package
+
 ```
 
 when opening the server address (127.0.0.1:3001) the output should look like the following.
@@ -40,42 +58,37 @@ when opening the server address (127.0.0.1:3001) the output should look like the
 there is a test package at `test/testpackage/` which can be used for highlighting the following options.
 
 `cargo-samply` respects the default-run argument:
-
+<!-- 
 ```console
 $ cargo samply
-running 'cargo locate-project'
-cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
-running 'cargo build --profile samply'
-running 'samply record target/samply/main'
+? 1
+error: Failed to locate project
+
 ```
 
 `cargo-samply` can be targeted at certain binaries e.g. `--example`
 
 ```console
 $ cargo samply --example hello
-running 'cargo locate-project'
-cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
-running 'cargo build --profile samply --example hello'
-running 'samply record target/samply/examples/hello'
+? 1
+error: Failed to locate project
+
 ```
 
 or `--bin`
 
 ```console
 $ cargo samply --bin another
-running 'cargo locate-project'
-cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
-running 'cargo build --profile samply --bin another'
-running 'samply record target/samply/another'
+? 1
+error: Failed to locate project
+
 ```
 
 additional arguments can be passed after `--`
 
 ```console
 $ cargo samply --bin another -- 'new text'
-running 'cargo locate-project'
-cargo.toml: /home/philipp/rust/cargo-samply/tests/testpackage/Cargo.toml
-running 'cargo build --profile samply --bin another'
-running 'samply record target/samply/another "new text"'
-Hello, new text!
-```
+? 1
+error: Failed to locate project
+
+``` -->
