@@ -16,7 +16,7 @@ cargo install cargo-samply
 cargo install --git https://github.com/PhilippPolterauer/cargo-samply.git
 ```
 
-## Useage
+## Usage
 
 ```console
 $ cargo samply --help
