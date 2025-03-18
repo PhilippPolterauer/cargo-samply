@@ -4,6 +4,10 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {
+    /// Cargo passes the sub-command's own name as first argument, which we don't care about.
+    #[arg(hide = true, value_parser = clap::builder::PossibleValuesParser::new(["samply"]))]
+    pub dummy: Option<String>,
+
     /// Trailing arguments passed to the binary being profiled
     #[arg(name = "TRAILING_ARGUMENTS")]
     pub args: Vec<String>,
