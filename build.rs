@@ -8,18 +8,9 @@ fn main() {
         .is_ok();
 
     if !samply_available {
-        // Install another package using Cargo
-        println!("cargo:warning=install samply");
-        let status = std::process::Command::new("cargo")
-            .args(["install", "samply"])
-            .status()
-            .expect("Failed to run cargo install");
-
-        if !status.success() {
-            eprintln!("Failed to install another_package_name");
-            std::process::exit(1);
-        }
-        println!("cargo:warning=install samply done!");
+        println!("cargo:warning='samply' is not installed. Please run `cargo install samply` and ensure it is in your PATH.");
+        // Optionally, you can fail the build:
+        // std::process::exit(1);
     }
     println!("cargo:rerun-if-changed=build.rs");
 }

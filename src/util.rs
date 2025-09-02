@@ -39,7 +39,10 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
         .and_then(|p| p.get("samply"));
 
     if profile_samply.is_none() {
-        let mut f = OpenOptions::new().append(true).open(cargo_toml).unwrap();
+        let mut f = OpenOptions::new()
+            .append(true)
+            .open(cargo_toml)
+            .path_ctx(cargo_toml)?;
         f.write(SAMPLY_PROFILE.as_bytes()).path_ctx(cargo_toml)?;
         info!("'samply' profile was added to 'Cargo.toml'");
     }
@@ -52,11 +55,11 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
     if let Some(bin) = default_run {
         Ok(bin)
     } else if manifest.bin.len() == 1 {
-        return Ok(manifest.bin.first().unwrap().name.clone().unwrap());
+        Ok(manifest.bin.first().unwrap().name.clone().unwrap())
     } else if manifest.bin.is_empty() {
-        return Err(error::Error::NoBinaryFound);
+        Err(error::Error::NoBinaryFound)
     } else {
-        return Err(error::Error::BinaryToRunNotDetermined);
+        Err(error::Error::BinaryToRunNotDetermined)
     }
 }
 

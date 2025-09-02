@@ -28,6 +28,8 @@ pub enum Error {
     BinaryToRunNotDetermined,
     #[error("Failed to locate project")]
     CargoLocateProjectFailed,
+    #[error("Binary not found: {path}")]
+    BinaryNotFound { path: PathBuf },
 }
 
 /// Alias for a `Result` with the error type `hld::Error`.

@@ -76,6 +76,10 @@ fn run() -> error::Result<()> {
             .join(&bin_name)
     };
 
+    if !bin_path.exists() {
+        return Err(error::Error::BinaryNotFound { path: bin_path });
+    }
+
     if !cli.no_samply {
         Command::new("samply")
             .arg("record")
