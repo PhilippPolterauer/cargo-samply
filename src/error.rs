@@ -30,6 +30,8 @@ pub enum Error {
     CargoLocateProjectFailed,
     #[error("Binary not found: {path}")]
     BinaryNotFound { path: PathBuf },
+    #[error("samply is not installed or not in PATH")]
+    SamplyNotFound,
 }
 
 /// Alias for a `Result` with the error type `hld::Error`.

@@ -26,7 +26,7 @@ pub struct Config {
 
     /// Build features to enable
     #[arg(short, long)]
-    pub features: Option<String>,
+    pub features: Vec<String>,
 
     /// Disable default features
     #[arg(long)]
@@ -35,6 +35,10 @@ pub struct Config {
     /// Print extra output to help debug problems
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
+
+    /// Suppress all output except errors
+    #[arg(short, long, default_value_t = false)]
+    pub quiet: bool,
 
     /// Disable the automatic samply start
     #[arg(short, long, default_value_t = false)]

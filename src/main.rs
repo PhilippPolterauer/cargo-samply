@@ -12,6 +12,105 @@ use clap::Parser;
 
 use crate::util::{ensure_samply_profile, guess_bin, locate_project, CommandExt};
 
+fn get_bin_path(root: &std::path::Path, profile: &str, bin_opt: &str, bin_name: &str) -> std::path::PathBuf {
+    if bin_opt == "--bin" {
+        root.join("target").join(profile).join(bin_name)
+    } else {
+        root.join("target").join(profile).join("examples").join(bin_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_multiple_features_handling() {
+        // Test multiple features passed as separate flags
+        let cli = crate::cli::Config {
+            args: vec![],
+            profile: "samply".to_string(),
+            bin: Some("test".to_string()),
+            example: None,
+            features: vec!["feature1".to_string(), "feature2".to_string()],
+            no_default_features: false,
+            verbose: false,
+            quiet: false,
+            no_samply: false,
+        };
+
+        let features_str = if !cli.features.is_empty() {
+            Some(cli.features.join(","))
+        } else {
+            None
+        };
+
+        assert_eq!(features_str, Some("feature1,feature2".to_string()));
+    }
+
+    #[test]
+    fn test_single_feature_handling() {
+        // Test single feature
+        let cli = crate::cli::Config {
+            args: vec![],
+            profile: "samply".to_string(),
+            bin: Some("test".to_string()),
+            example: None,
+            features: vec!["feature1".to_string()],
+            no_default_features: false,
+            verbose: false,
+            quiet: false,
+            no_samply: false,
+        };
+
+        let features_str = if !cli.features.is_empty() {
+            Some(cli.features.join(","))
+        } else {
+            None
+        };
+
+        assert_eq!(features_str, Some("feature1".to_string()));
+    }
+
+    #[test]
+    fn test_no_features_handling() {
+        // Test no features
+        let cli = crate::cli::Config {
+            args: vec![],
+            profile: "samply".to_string(),
+            bin: Some("test".to_string()),
+            example: None,
+            features: vec![],
+            no_default_features: false,
+            verbose: false,
+            quiet: false,
+            no_samply: false,
+        };
+
+        let features_str = if !cli.features.is_empty() {
+            Some(cli.features.join(","))
+        } else {
+            None
+        };
+
+        assert_eq!(features_str, None);
+    }
+
+    #[test]
+    fn test_get_bin_path_bin() {
+        let root = std::path::Path::new("/project");
+        let path = get_bin_path(root, "release", "--bin", "mybin");
+        assert_eq!(path, std::path::Path::new("/project/target/release/mybin"));
+    }
+
+    #[test]
+    fn test_get_bin_path_example() {
+        let root = std::path::Path::new("/project");
+        let path = get_bin_path(root, "debug", "--example", "myexample");
+        assert_eq!(path, std::path::Path::new("/project/target/debug/examples/myexample"));
+    }
+}
+
 fn main() {
     if let Err(err) = run() {
         error!("{}", err);
@@ -21,11 +120,14 @@ fn main() {
 
 fn run() -> error::Result<()> {
     let cli = cli::Config::parse();
-    ocli::init(if cli.verbose {
+    let log_level = if cli.quiet {
+        log::Level::Error
+    } else if cli.verbose {
         log::Level::Debug
     } else {
         log::Level::Warn
-    })?;
+    };
+    ocli::init(log_level)?;
 
     if cli.bin.is_some() && cli.example.is_some() {
         return Err(error::Error::BinAndExampleMutuallyExclusive);
@@ -51,8 +153,14 @@ fn run() -> error::Result<()> {
         ("--bin", guess_bin(&cargo_toml)?)
     };
 
+    let features_str = if !cli.features.is_empty() {
+        Some(cli.features.join(","))
+    } else {
+        None
+    };
+
     let mut args = vec!["build", "--profile", &cli.profile, &bin_opt, &bin_name];
-    if let Some(features) = cli.features.as_ref() {
+    if let Some(ref features) = features_str {
         args.push("--features");
         args.push(features);
     }
@@ -67,20 +175,20 @@ fn run() -> error::Result<()> {
     // run samply on the binary
     // if it fails print error
     let root = cargo_toml.parent().unwrap();
-    let bin_path = if bin_opt == "--bin" {
-        root.join("target").join(&cli.profile).join(&bin_name)
-    } else {
-        root.join("target")
-            .join(&cli.profile)
-            .join("examples")
-            .join(&bin_name)
-    };
+    let bin_path = get_bin_path(root, &cli.profile, bin_opt, &bin_name);
 
     if !bin_path.exists() {
         return Err(error::Error::BinaryNotFound { path: bin_path });
     }
 
     if !cli.no_samply {
+        let samply_available = std::process::Command::new("samply")
+            .arg("--help")
+            .status()
+            .is_ok();
+        if !samply_available {
+            return Err(error::Error::SamplyNotFound);
+        }
         Command::new("samply")
             .arg("record")
             .arg(bin_path)
