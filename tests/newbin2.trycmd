@@ -4,7 +4,7 @@ $ cargo-samply -v --no-samply
 debug: [0mrunning "cargo" with args: ["locate-project", "--workspace", "--message-format", "plain"]
 debug: [0mcargo.toml: "[CWD]/Cargo.toml"
 debug: [0mrunning "cargo" with args: ["build", "--profile", "samply", "--bin", "bin"]
-    Finished `samply` profile [optimized + debuginfo] target(s) in 0.00s
+    Finished `samply` profile [optimized + debuginfo] target(s) in [..]s
 debug: [0mrunning "[CWD]/target/samply/bin" with args: []
 Hello, world!
 

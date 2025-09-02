@@ -24,7 +24,7 @@ fn run() -> error::Result<()> {
     ocli::init(if cli.verbose {
         log::Level::Debug
     } else {
-        log::Level::Info
+        log::Level::Warn
     })?;
 
     if cli.bin.is_some() && cli.example.is_some() {

@@ -1,6 +1,9 @@
-```console
+````console
 $ cargo-samply --no-samply
 ? 1
 error: [0mThe binary to run can't be determined. Use the `--bin` option to specify a binary, or the `default-run` manifest key.
 
-```
+$ cargo-samply --no-samply
+? 1
+error: [0mThe binary to run can't be determined. Use the `--bin` option to specify a binary, or the `default-run` manifest key.
+
