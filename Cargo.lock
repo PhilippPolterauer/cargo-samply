@@ -73,6 +73,7 @@ version = "0.3.0"
 dependencies = [
  "cargo_toml",
  "clap",
+ "clap-cargo",
  "log",
  "ocli",
  "regex",
@@ -107,6 +108,16 @@ checksum = "7eac00902d9d136acd712710d71823fb8ac8004ca445a89e73a41d45aa712931"
 dependencies = [
  "clap_builder",
  "clap_derive",
+]
+
+[[package]]
+name = "clap-cargo"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db0bd7fba4da3bce65c1ddb068a9d632876c779d20c8b515fbce1e867fccce17"
+dependencies = [
+ "anstyle",
+ "clap",
 ]
 
 [[package]]

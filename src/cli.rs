@@ -1,13 +1,27 @@
 use clap::Parser;
 
+#[derive(Parser)] // requires `derive` feature
+#[command(name = "cargo")]
+#[command(bin_name = "cargo")]
+#[command(styles = CLAP_STYLING)]
+pub enum CargoCli {
+    Samply(Config),
+}
+
+// See also `clap_cargo::style::CLAP_STYLING`
+pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
+    .header(clap_cargo::style::HEADER)
+    .usage(clap_cargo::style::USAGE)
+    .literal(clap_cargo::style::LITERAL)
+    .placeholder(clap_cargo::style::PLACEHOLDER)
+    .error(clap_cargo::style::ERROR)
+    .valid(clap_cargo::style::VALID)
+    .invalid(clap_cargo::style::INVALID);
+
 /// A cargo subcommand for profiling binaries using samply
-#[derive(Parser, Debug)]
+#[derive(clap::Args)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {
-    /// Cargo passes the sub-command's own name as first argument, which we don't care about.
-    #[arg(hide = true, value_parser = clap::builder::PossibleValuesParser::new(["samply"]))]
-    pub dummy: Option<String>,
-
     /// Trailing arguments passed to the binary being profiled
     #[arg(name = "TRAILING_ARGUMENTS")]
     pub args: Vec<String>,

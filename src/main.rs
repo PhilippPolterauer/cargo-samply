@@ -10,13 +10,22 @@ use std::vec;
 
 use clap::Parser;
 
+use crate::cli::CargoCli;
 use crate::util::{ensure_samply_profile, guess_bin, locate_project, CommandExt};
 
-fn get_bin_path(root: &std::path::Path, profile: &str, bin_opt: &str, bin_name: &str) -> std::path::PathBuf {
+fn get_bin_path(
+    root: &std::path::Path,
+    profile: &str,
+    bin_opt: &str,
+    bin_name: &str,
+) -> std::path::PathBuf {
     if bin_opt == "--bin" {
         root.join("target").join(profile).join(bin_name)
     } else {
-        root.join("target").join(profile).join("examples").join(bin_name)
+        root.join("target")
+            .join(profile)
+            .join("examples")
+            .join(bin_name)
     }
 }
 
@@ -107,7 +116,10 @@ mod tests {
     fn test_get_bin_path_example() {
         let root = std::path::Path::new("/project");
         let path = get_bin_path(root, "debug", "--example", "myexample");
-        assert_eq!(path, std::path::Path::new("/project/target/debug/examples/myexample"));
+        assert_eq!(
+            path,
+            std::path::Path::new("/project/target/debug/examples/myexample")
+        );
     }
 }
 
@@ -119,7 +131,7 @@ fn main() {
 }
 
 fn run() -> error::Result<()> {
-    let cli = cli::Config::parse();
+    let CargoCli::Samply(cli) = CargoCli::parse();
     let log_level = if cli.quiet {
         log::Level::Error
     } else if cli.verbose {
