@@ -1,9 +1,6 @@
-````console
+```console
 $ cargo-samply samply
 ? 1
 error: [0mNo binary found in 'Cargo.toml'
 
-$ cargo-samply samply
-? 1
-error: [0mNo binary found in 'Cargo.toml'
-
+```

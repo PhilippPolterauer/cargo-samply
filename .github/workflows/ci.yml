@@ -12,11 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
 
       - name: Run build
@@ -26,10 +23,10 @@ jobs:
           args: --release
 
       - name: Run tests
-        run: cargo test --release
-
-      - name: Run trycmd tests
-        run: cargo test --test cli_tests
+        run: CARGO_TERM_COLOR=never cargo test --release --color never -j1 -- --test-threads=1
+        env:
+          NO_COLOR: 1
+          TERM: dumb
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
