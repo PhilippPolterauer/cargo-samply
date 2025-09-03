@@ -56,13 +56,19 @@ Options:
 
 ### Basic Profiling
 
+A minimal example on how to use `cargo-samply`.
+
 ```console
-$ cargo install cargo-samply samply
+$ cargo install cargo-samply
 $ cargo new mybinary
      Created binary (application) `mybinary` package
 $ cd mybinary
 $ cargo samply
 ```
+
+When opening the server address (127.0.0.1:3001) the output should look like the following:
+
+![Samply Web View](https://raw.githubusercontent.com/PhilippPolterauer/cargo-samply/main/doc/samply-web.png)
 
 ### Advanced Usage
 
@@ -88,10 +94,6 @@ cargo samply --no-samply
 # Pass arguments to the binary
 cargo samply -- arg1 arg2 --flag value
 ```
-
-When opening the server address (127.0.0.1:3001) the output should look like the following:
-
-![Samply Web View](https://raw.githubusercontent.com/PhilippPolterauer/cargo-samply/main/doc/samply-web.png)
 
 ## Development
 
