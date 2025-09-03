@@ -45,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved test command consistency between local development and CI
 - Enhanced development experience with automated cleanup commands
 - Added comprehensive test coverage for workspace scenarios
-- Improved build automation with version management commands
 
 ## [0.3.0] - 2025-09-03
 
