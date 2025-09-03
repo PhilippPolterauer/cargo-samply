@@ -16,11 +16,19 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Run build
-        uses: actions-rs/cargo@v1
+      - name: "Cache cargo"
+        id: cache-cargo
+        uses: "actions/cache@v4"
         with:
-          command: build
-          args: --release
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          save-always: true
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Run tests
         run: CARGO_TERM_COLOR=never cargo test --release --color never -j1 -- --test-threads=1
