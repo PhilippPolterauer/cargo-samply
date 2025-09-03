@@ -1,5 +1,41 @@
 # Justfile for cargo-samply
+# Run all checks (test, clippy, format)
+check:
+    #!/usr/bin/env bash
+    echo "🔍 Running all checks..."
+    echo ""
+    echo "📝 Checking formatting..."
+    cargo fmt --check
+    echo "✅ Formatting check passed"
+    echo ""
+    echo "📎 Running clippy..."
+    cargo clippy --all-targets --all-features
+    echo "✅ Clippy check passed"
+    echo ""
+    echo "🧪 Running tests..."
+    cargo test --release
+    echo "✅ All tests passed"
+    echo ""
+    echo "🎉 All checks passed successfully!"
 
+# Run strict checks (test, clippy with deny warnings, format)
+check-strict:
+    #!/usr/bin/env bash
+    echo "🔍 Running strict checks..."
+    echo ""
+    echo "📝 Checking formatting..."
+    cargo fmt --check
+    echo "✅ Formatting check passed"
+    echo ""
+    echo "📎 Running clippy (strict)..."
+    cargo clippy --all-targets --all-features -- -D warnings
+    echo "✅ Clippy strict check passed"
+    echo ""
+    echo "🧪 Running tests..."
+    cargo test --release
+    echo "✅ All tests passed"
+    echo ""
+    echo "🎉 All strict checks passed successfully!"
 # Clean all target directories from test cargo projects
 clean:
     #!/usr/bin/env bash

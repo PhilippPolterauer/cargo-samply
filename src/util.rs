@@ -147,7 +147,7 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
         .current_dir(work_dir)
         .no_deps()
         .exec()
-        .map_err(|e| error::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| error::Error::Io(std::io::Error::other(e)))?;
 
     let mut binaries = Vec::new();
     let mut examples = Vec::new();
