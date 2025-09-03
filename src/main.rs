@@ -176,12 +176,14 @@ fn run() -> error::Result<()> {
         // Parse as if "samply" was the first argument
         let mut modified_args = vec!["cargo".to_string(), "samply".to_string()];
         modified_args.extend(args.into_iter().skip(1));
-        crate::cli::CargoCli::try_parse_from(modified_args).map_err(|e| {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        }).unwrap()
+        crate::cli::CargoCli::try_parse_from(modified_args)
+            .map_err(|e| {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            })
+            .unwrap()
     };
-    
+
     let crate::cli::CargoCli::Samply(cli) = cli;
     let log_level = if cli.quiet {
         log::Level::Error

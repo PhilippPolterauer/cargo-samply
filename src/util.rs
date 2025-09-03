@@ -29,8 +29,8 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
-use log::{debug, info};
 use crate::error::{self, IOResultExt};
+use log::{debug, info};
 
 /// Locates the cargo project by running `cargo locate-project`.
 ///
@@ -177,7 +177,7 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
 /// let exit_status = Command::new("cargo")
 ///     .args(&["build", "--release"])
 ///     .call()?;
-/// 
+///
 /// if exit_status.success() {
 ///     println!("Build succeeded!");
 /// }
@@ -189,7 +189,7 @@ pub trait CommandExt {
     /// This method automatically logs the command and its arguments
     /// in debug mode before execution.
     fn call(&mut self) -> error::Result<ExitStatus>;
-    
+
     /// Log the command and its arguments in debug mode.
     ///
     /// This method is called automatically by `call()` but can also

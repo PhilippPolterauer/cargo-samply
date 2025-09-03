@@ -1,6 +1,6 @@
 //! # cargo-samply
 //!
-//! A cargo subcommand to automate the process of running [samply](https://github.com/mstange/samply) 
+//! A cargo subcommand to automate the process of running [samply](https://github.com/mstange/samply)
 //! for profiling Rust project binaries.
 //!
 //! ## Overview
@@ -91,7 +91,7 @@
 //! cargo samply --example my-example -- --config config.json
 //! ```
 //!
-//! When using `--no-samply` (to just run the binary without profiling), 
+//! When using `--no-samply` (to just run the binary without profiling),
 //! arguments are passed through directly:
 //!
 //! ```bash
