@@ -71,6 +71,37 @@
 //! cargo samply --verbose
 //! ```
 //!
+//! ### Passing Arguments to the Binary
+//!
+//! You can pass arguments to the binary being profiled by using `--` to separate
+//! cargo-samply options from binary arguments:
+//!
+//! ```bash
+//! # Pass arguments to the default binary
+//! cargo samply -- arg1 arg2 --flag value
+//! ```
+//!
+//! ```bash
+//! # Pass arguments to a specific binary
+//! cargo samply --bin my-binary -- --input file.txt --verbose
+//! ```
+//!
+//! ```bash
+//! # Pass arguments to an example
+//! cargo samply --example my-example -- --config config.json
+//! ```
+//!
+//! When using `--no-samply` (to just run the binary without profiling), 
+//! arguments are passed through directly:
+//!
+//! ```bash
+//! # Run binary with arguments but without profiling
+//! cargo samply --no-samply --bin my-binary -- --debug --port 8080
+//! ```
+//!
+//! **Note**: All arguments after `--` are passed directly to your binary,
+//! so you can use any command-line arguments your binary supports.
+//!
 //! ## How It Works
 //!
 //! 1. **Profile Management**: Automatically adds a `samply` profile to your `Cargo.toml` if it doesn't exist

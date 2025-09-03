@@ -1,6 +1,6 @@
 ```console
 $ cargo-samply --no-samply arg1 arg2 arg3 arg4
-    Finished `samply` profile [optimized + debuginfo] target(s) in 0.00s
+    Finished `samply` profile [optimized + debuginfo] target(s) in [..]s
 Args: Args {
     inner: [
         "[CWD]/target/samply/args",
@@ -17,7 +17,7 @@ Args: Args {
 
 ```console
 $ cargo-samply --no-samply arg1 arg2 arg3 arg4
-    Finished `samply` profile [optimized + debuginfo] target(s) in 0.00s
+    Finished `samply` profile [optimized + debuginfo] target(s) in [..]s
 Args: Args {
     inner: [
         "[CWD]/target/samply/args",
@@ -32,7 +32,7 @@ Args: Args {
 
 ```console
 $ cargo-samply --no-samply arg1 arg2 arg3 arg4
-    Finished `samply` profile [optimized + debuginfo] target(s) in 0.00s
+    Finished `samply` profile [optimized + debuginfo] target(s) in [..]s
 Args: Args {
     inner: [
         "[CWD]/target/samply/args",
