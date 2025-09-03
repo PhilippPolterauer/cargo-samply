@@ -31,6 +31,13 @@ use std::{
 
 use crate::error::{self, IOResultExt};
 use log::{debug, info};
+use cargo_metadata::MetadataCommand;
+
+#[derive(Debug)]
+pub struct WorkspaceMetadata {
+    pub binaries: Vec<String>,
+    pub examples: Vec<String>,
+}
 
 /// Locates the cargo project by running `cargo locate-project`.
 ///
@@ -120,13 +127,62 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
     Ok(())
 }
 
+/// Gets workspace metadata including all available binaries and examples.
+///
+/// This function uses `cargo_metadata` to collect information about all
+/// binaries and examples available in the workspace.
+///
+/// # Arguments
+///
+/// * `cargo_toml` - Path to the Cargo.toml file to determine the working directory
+///
+/// # Returns
+///
+/// - `Ok(WorkspaceMetadata)` - Metadata containing available binaries and examples
+/// - `Err(Error)` - If cargo metadata command fails
+pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<WorkspaceMetadata> {
+    let work_dir = cargo_toml.parent().unwrap_or_else(|| Path::new("."));
+    
+    let metadata = MetadataCommand::new()
+        .current_dir(work_dir)
+        .no_deps()
+        .exec()
+        .map_err(|e| error::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+
+    let mut binaries = Vec::new();
+    let mut examples = Vec::new();
+
+    for package in metadata.packages {
+        for target in package.targets {
+            match target.kind.as_slice() {
+                kinds if kinds.contains(&"bin".to_string()) => {
+                    if !binaries.contains(&target.name) {
+                        binaries.push(target.name);
+                    }
+                }
+                kinds if kinds.contains(&"example".to_string()) => {
+                    if !examples.contains(&target.name) {
+                        examples.push(target.name);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    binaries.sort();
+    examples.sort();
+
+    Ok(WorkspaceMetadata { binaries, examples })
+}
+
 /// Determines which binary to run based on the Cargo.toml configuration.
 ///
 /// This function uses the following priority order:
 /// 1. If `default-run` is specified in `[package]`, use that binary
-/// 2. If there's exactly one `[[bin]]` section, use that binary
-/// 3. If there are no `[[bin]]` sections, return `NoBinaryFound`
-/// 4. If there are multiple `[[bin]]` sections, return `BinaryToRunNotDetermined`
+/// 2. If there's exactly one binary in the local manifest, use that binary
+/// 3. If there are no binaries in local manifest, try workspace metadata
+/// 4. If there are multiple binaries, return `BinaryToRunNotDetermined` with suggestions
 ///
 /// # Arguments
 ///
@@ -136,7 +192,7 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
 ///
 /// - `Ok(String)` - Name of the binary to run
 /// - `Err(Error::NoBinaryFound)` - No binary targets found
-/// - `Err(Error::BinaryToRunNotDetermined)` - Multiple binaries, no default
+/// - `Err(Error::BinaryToRunNotDetermined)` - Multiple binaries, includes suggestions
 ///
 /// # Examples
 ///
@@ -150,17 +206,75 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
 /// # Ok::<(), cargo_samply::error::Error>(())
 /// ```
 pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
+    // First try the local manifest for default-run
     let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
     let default_run = manifest.package.and_then(|p| p.default_run);
     if let Some(bin) = default_run {
-        Ok(bin)
-    } else if manifest.bin.len() == 1 {
-        Ok(manifest.bin.first().unwrap().name.clone().unwrap())
-    } else if manifest.bin.is_empty() {
-        Err(error::Error::NoBinaryFound)
-    } else {
-        Err(error::Error::BinaryToRunNotDetermined)
+        return Ok(bin);
     }
+
+    // Check local manifest binaries first
+    if manifest.bin.len() == 1 {
+        if let Some(name) = manifest.bin.first().and_then(|b| b.name.as_ref()) {
+            return Ok(name.clone());
+        }
+    }
+    
+    // If local manifest has multiple binaries, collect them for suggestions
+    let local_binaries: Vec<String> = manifest.bin.iter()
+        .filter_map(|b| b.name.as_ref())
+        .cloned()
+        .collect();
+    
+    let local_examples: Vec<String> = manifest.example.iter()
+        .filter_map(|e| e.name.as_ref())
+        .cloned()
+        .collect();
+
+    // If we have local binaries/examples, use them for suggestions
+    if !local_binaries.is_empty() || !local_examples.is_empty() {
+        return create_suggestions_error(local_binaries, local_examples);
+    }
+
+    // Fall back to workspace metadata for complex workspace scenarios
+    let workspace_metadata = get_workspace_metadata_from(cargo_toml).unwrap_or_else(|_| {
+        // If cargo metadata fails, return empty metadata
+        WorkspaceMetadata { binaries: Vec::new(), examples: Vec::new() }
+    });
+    
+    if workspace_metadata.binaries.is_empty() {
+        return Err(error::Error::NoBinaryFound);
+    }
+    
+    if workspace_metadata.binaries.len() == 1 {
+        return Ok(workspace_metadata.binaries[0].clone());
+    }
+
+    create_suggestions_error(workspace_metadata.binaries, workspace_metadata.examples)
+}
+
+fn create_suggestions_error(binaries: Vec<String>, examples: Vec<String>) -> error::Result<String> {
+    let mut suggestions = Vec::new();
+    
+    if !binaries.is_empty() {
+        suggestions.push("\n\nAvailable binaries:".to_string());
+        for bin in &binaries {
+            suggestions.push(format!("  {}: cargo samply --bin {}", bin, bin));
+        }
+    }
+
+    if !examples.is_empty() {
+        suggestions.push("\n\nAvailable examples:".to_string());
+        for example in &examples {
+            suggestions.push(format!("  {}: cargo samply --example {}", example, example));
+        }
+    }
+
+    let suggestions_text = suggestions.join("\n");
+
+    Err(error::Error::BinaryToRunNotDetermined {
+        suggestions: suggestions_text,
+    })
 }
 
 /// Extension trait for `Command` that adds logging and convenience methods.
@@ -319,10 +433,10 @@ path = "src/second.rs"
 
         let result = guess_bin(&cargo_toml_path);
         assert!(result.is_err());
-        if let Err(error::Error::BinaryToRunNotDetermined) = result {
+        if let Err(error::Error::BinaryToRunNotDetermined { suggestions: _ }) = result {
             // Correct
         } else {
-            panic!("Expected BinaryToRunNotDetermined");
+            panic!("Expected BinaryToRunNotDetermined with suggestions");
         }
     }
 
@@ -342,7 +456,7 @@ version = "0.1.0"
         if let Err(error::Error::NoBinaryFound) = result {
             // Correct
         } else {
-            panic!("Expected NoBinaryFound");
+            panic!("Expected NoBinaryFound, got: {:?}", result);
         }
     }
 }

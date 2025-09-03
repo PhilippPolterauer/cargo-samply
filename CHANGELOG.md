@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `justfile` with useful development commands:
+  - `just clean` - Remove target directories from test projects
+  - `just clean-main` - Clean main project target directory
+  - `just clean-all` - Clean all target directories
+  - `just test` - Run tests matching CI configuration
+  - `just test-overwrite` - Update test snapshots
+
+### Fixed
+
+- Fixed CI test failures by removing ANSI color codes from test expectations
+- Improved test stability by cleaning up colored output in test snapshots
+- Fixed integration test consistency issues
+
+### DevOps
+
+- Added justfile for standardized development workflows
+- Improved test command consistency between local development and CI
+- Enhanced development experience with automated cleanup commands
+
 ## [0.3.0] - 2025-09-03
 
 ### Added

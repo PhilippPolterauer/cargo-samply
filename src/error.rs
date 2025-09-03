@@ -59,8 +59,8 @@ pub enum Error {
     #[error("No binary found in 'Cargo.toml'")]
     NoBinaryFound,
     /// Multiple binaries found but no default specified
-    #[error("The binary to run can't be determined. Use the `--bin` option to specify a binary, or the `default-run` manifest key.")]
-    BinaryToRunNotDetermined,
+    #[error("The binary to run can't be determined. Use the `--bin` option to specify a binary, or the `default-run` manifest key.{suggestions}")]
+    BinaryToRunNotDetermined { suggestions: String },
     /// Failed to locate the cargo project
     #[error("Failed to locate project")]
     CargoLocateProjectFailed,

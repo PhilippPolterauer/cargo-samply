@@ -1,0 +1,29 @@
+# Test case for workspace with multiple binaries and examples
+
+```console
+$ cargo-samply samply --no-samply
+? 1
+error: The binary to run can't be determined. Use the `--bin` option to specify a binary, or the `default-run` manifest key.
+
+Available binaries:
+  bin1: cargo samply --bin bin1
+  bin2: cargo samply --bin bin2
+
+
+Available examples:
+  example1: cargo samply --example example1
+  example2: cargo samply --example example2
+
+```
+
+```console
+$ cargo samply --bin bin1 --no-samply
+Hello from bin1!
+
+```
+
+```console
+$ cargo samply --example example1 --no-samply
+Hello from example1!
+
+```
