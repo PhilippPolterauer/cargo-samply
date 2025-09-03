@@ -31,10 +31,11 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Run tests
-        run: CARGO_TERM_COLOR=never cargo test --release --color never -j1 -- --test-threads=1
+        run:  cargo test --release
         env:
           NO_COLOR: 1
           TERM: dumb
+          CARGO_TERM_COLOR: never
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
