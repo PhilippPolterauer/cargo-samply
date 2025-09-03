@@ -45,100 +45,6 @@ fn get_bin_path(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_multiple_features_handling() {
-        // Test multiple features passed as separate flags
-        let cli = crate::cli::Config {
-            args: vec![],
-            profile: "samply".to_string(),
-            bin: Some("test".to_string()),
-            example: None,
-            features: vec!["feature1".to_string(), "feature2".to_string()],
-            no_default_features: false,
-            verbose: false,
-            quiet: false,
-            no_samply: false,
-        };
-
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
-        assert_eq!(features_str, Some("feature1,feature2".to_string()));
-    }
-
-    #[test]
-    fn test_single_feature_handling() {
-        // Test single feature
-        let cli = crate::cli::Config {
-            args: vec![],
-            profile: "samply".to_string(),
-            bin: Some("test".to_string()),
-            example: None,
-            features: vec!["feature1".to_string()],
-            no_default_features: false,
-            verbose: false,
-            quiet: false,
-            no_samply: false,
-        };
-
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
-        assert_eq!(features_str, Some("feature1".to_string()));
-    }
-
-    #[test]
-    fn test_no_features_handling() {
-        // Test no features
-        let cli = crate::cli::Config {
-            args: vec![],
-            profile: "samply".to_string(),
-            bin: Some("test".to_string()),
-            example: None,
-            features: vec![],
-            no_default_features: false,
-            verbose: false,
-            quiet: false,
-            no_samply: false,
-        };
-
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
-        assert_eq!(features_str, None);
-    }
-
-    #[test]
-    fn test_get_bin_path_bin() {
-        let root = std::path::Path::new("/project");
-        let path = get_bin_path(root, "release", "--bin", "mybin");
-        assert_eq!(path, std::path::Path::new("/project/target/release/mybin"));
-    }
-
-    #[test]
-    fn test_get_bin_path_example() {
-        let root = std::path::Path::new("/project");
-        let path = get_bin_path(root, "debug", "--example", "myexample");
-        assert_eq!(
-            path,
-            std::path::Path::new("/project/target/debug/examples/myexample")
-        );
-    }
-}
-
 /// Entry point for the cargo-samply application.
 ///
 /// Initializes error handling and calls the main run function.
@@ -264,4 +170,98 @@ fn run() -> error::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_multiple_features_handling() {
+        // Test multiple features passed as separate flags
+        let cli = crate::cli::Config {
+            args: vec![],
+            profile: "samply".to_string(),
+            bin: Some("test".to_string()),
+            example: None,
+            features: vec!["feature1".to_string(), "feature2".to_string()],
+            no_default_features: false,
+            verbose: false,
+            quiet: false,
+            no_samply: false,
+        };
+
+        let features_str = if !cli.features.is_empty() {
+            Some(cli.features.join(","))
+        } else {
+            None
+        };
+
+        assert_eq!(features_str, Some("feature1,feature2".to_string()));
+    }
+
+    #[test]
+    fn test_single_feature_handling() {
+        // Test single feature
+        let cli = crate::cli::Config {
+            args: vec![],
+            profile: "samply".to_string(),
+            bin: Some("test".to_string()),
+            example: None,
+            features: vec!["feature1".to_string()],
+            no_default_features: false,
+            verbose: false,
+            quiet: false,
+            no_samply: false,
+        };
+
+        let features_str = if !cli.features.is_empty() {
+            Some(cli.features.join(","))
+        } else {
+            None
+        };
+
+        assert_eq!(features_str, Some("feature1".to_string()));
+    }
+
+    #[test]
+    fn test_no_features_handling() {
+        // Test no features
+        let cli = crate::cli::Config {
+            args: vec![],
+            profile: "samply".to_string(),
+            bin: Some("test".to_string()),
+            example: None,
+            features: vec![],
+            no_default_features: false,
+            verbose: false,
+            quiet: false,
+            no_samply: false,
+        };
+
+        let features_str = if !cli.features.is_empty() {
+            Some(cli.features.join(","))
+        } else {
+            None
+        };
+
+        assert_eq!(features_str, None);
+    }
+
+    #[test]
+    fn test_get_bin_path_bin() {
+        let root = std::path::Path::new("/project");
+        let path = get_bin_path(root, "release", "--bin", "mybin");
+        assert_eq!(path, std::path::Path::new("/project/target/release/mybin"));
+    }
+
+    #[test]
+    fn test_get_bin_path_example() {
+        let root = std::path::Path::new("/project");
+        let path = get_bin_path(root, "debug", "--example", "myexample");
+        assert_eq!(
+            path,
+            std::path::Path::new("/project/target/debug/examples/myexample")
+        );
+    }
 }

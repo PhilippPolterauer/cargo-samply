@@ -30,8 +30,8 @@ use std::{
 };
 
 use crate::error::{self, IOResultExt};
-use log::{debug, info};
 use cargo_metadata::MetadataCommand;
+use log::{debug, info};
 
 #[derive(Debug)]
 pub struct WorkspaceMetadata {
@@ -142,12 +142,12 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
 /// - `Err(Error)` - If cargo metadata command fails
 pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<WorkspaceMetadata> {
     let work_dir = cargo_toml.parent().unwrap_or_else(|| Path::new("."));
-    
+
     let metadata = MetadataCommand::new()
         .current_dir(work_dir)
         .no_deps()
         .exec()
-        .map_err(|e| error::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| error::Error::Io(std::io::Error::other(e)))?;
 
     let mut binaries = Vec::new();
     let mut examples = Vec::new();
@@ -219,14 +219,18 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
             return Ok(name.clone());
         }
     }
-    
+
     // If local manifest has multiple binaries, collect them for suggestions
-    let local_binaries: Vec<String> = manifest.bin.iter()
+    let local_binaries: Vec<String> = manifest
+        .bin
+        .iter()
         .filter_map(|b| b.name.as_ref())
         .cloned()
         .collect();
-    
-    let local_examples: Vec<String> = manifest.example.iter()
+
+    let local_examples: Vec<String> = manifest
+        .example
+        .iter()
         .filter_map(|e| e.name.as_ref())
         .cloned()
         .collect();
@@ -239,13 +243,16 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
     // Fall back to workspace metadata for complex workspace scenarios
     let workspace_metadata = get_workspace_metadata_from(cargo_toml).unwrap_or_else(|_| {
         // If cargo metadata fails, return empty metadata
-        WorkspaceMetadata { binaries: Vec::new(), examples: Vec::new() }
+        WorkspaceMetadata {
+            binaries: Vec::new(),
+            examples: Vec::new(),
+        }
     });
-    
+
     if workspace_metadata.binaries.is_empty() {
         return Err(error::Error::NoBinaryFound);
     }
-    
+
     if workspace_metadata.binaries.len() == 1 {
         return Ok(workspace_metadata.binaries[0].clone());
     }
@@ -255,7 +262,7 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
 
 fn create_suggestions_error(binaries: Vec<String>, examples: Vec<String>) -> error::Result<String> {
     let mut suggestions = Vec::new();
-    
+
     if !binaries.is_empty() {
         suggestions.push("\n\nAvailable binaries:".to_string());
         for bin in &binaries {

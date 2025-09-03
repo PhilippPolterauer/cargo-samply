@@ -14,7 +14,7 @@ fn trycmd() {
         .register_bin("cargo", trycmd::schema::Bin::Path(which("cargo").unwrap()));
 
     for pth in cargo_bins.iter().filter(|pth| {
-        !pth.extension().is_some_and(|pth| pth == "exe")
+        pth.extension().is_some_and(|pth| pth == "exe")
             && pth.file_name().is_some_and(|p| p != "cargo-samply")
     }) {
         println!("{}", pth.file_name().unwrap().to_string_lossy());
@@ -23,5 +23,5 @@ fn trycmd() {
             trycmd::schema::Bin::Path(pth.clone()),
         );
     }
-    t = t.register_bin("cargo-samply", trycmd::cargo::cargo_bin("cargo-samply"));
+    t.register_bin("cargo-samply", trycmd::cargo::cargo_bin("cargo-samply"));
 }
