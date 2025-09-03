@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-09-03
+
 ### Added
 
 - `justfile` with useful development commands:
@@ -15,18 +17,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `just clean-all` - Clean all target directories
   - `just test` - Run tests matching CI configuration
   - `just test-overwrite` - Update test snapshots
+  - `just check` - Run all checks (formatting, clippy, tests)
+  - `just check-strict` - Run strict checks with warnings as errors
+- Enhanced bin guessing logic with workspace support using `cargo_metadata`
+- Improved error messages with actionable suggestions and copy-pasteable commands
+- Comprehensive workspace detection for binaries and examples
+- Version bump commands: `just bump-patch`, `just bump-minor`, `just bump-major`
+- Dry run functionality: `just bump-dry LEVEL` to preview version changes
 
 ### Fixed
 
 - Fixed CI test failures by removing ANSI color codes from test expectations
 - Improved test stability by cleaning up colored output in test snapshots
 - Fixed integration test consistency issues
+- Enhanced workspace metadata handling with proper fallback for test scenarios
+- Improved error messages for complex workspace scenarios
+
+### Changed
+
+- Converted metadata function to use `cargo_metadata` crate for better type safety
+- Enhanced error handling with structured suggestions for available binaries and examples
+- Updated test expectations to match improved error message format
 
 ### DevOps
 
 - Added justfile for standardized development workflows
 - Improved test command consistency between local development and CI
 - Enhanced development experience with automated cleanup commands
+- Added comprehensive test coverage for workspace scenarios
+- Improved build automation with version management commands
 
 ## [0.3.0] - 2025-09-03
 
