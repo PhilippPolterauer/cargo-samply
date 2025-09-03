@@ -79,6 +79,44 @@ bump-major:
     echo "🔖 Bumping major version..."
     just _bump major
 
+# Show what version bump would do (dry run)
+bump-dry LEVEL:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Get current version from Cargo.toml
+    CURRENT_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+    echo "📝 Current version: $CURRENT_VERSION"
+    
+    # Parse version components
+    IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+    
+    # Calculate new version based on bump level
+    case "{{LEVEL}}" in
+        patch)
+            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+            ;;
+        minor)
+            NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+            ;;
+        major)
+            NEW_VERSION="$((MAJOR + 1)).0.0"
+            ;;
+        *)
+            echo "❌ Error: Invalid bump level '{{LEVEL}}'. Use patch, minor, or major."
+            exit 1
+            ;;
+    esac
+    
+    echo "🚀 New version would be: $NEW_VERSION"
+    echo "📝 Would update:"
+    echo "   - Cargo.toml version"
+    echo "   - CHANGELOG.md (move Unreleased → [$NEW_VERSION])"
+    echo "   - Create git commit"
+    echo "   - Create git tag v$NEW_VERSION"
+    echo ""
+    echo "💡 Run 'just bump-{{LEVEL}}' to execute the version bump"
+
 # Internal command to handle version bumping
 _bump LEVEL:
     #!/usr/bin/env bash
