@@ -1,3 +1,8 @@
+//! Main entry point for the cargo-samply binary.
+//!
+//! This module handles command-line argument parsing and coordinates
+//! the build and profiling process.
+
 #[macro_use]
 extern crate log;
 
@@ -12,6 +17,18 @@ use clap::Parser;
 
 use crate::util::{ensure_samply_profile, guess_bin, locate_project, CommandExt};
 
+/// Constructs the path to the built binary based on profile and binary type.
+///
+/// # Arguments
+///
+/// * `root` - Project root directory
+/// * `profile` - Build profile (e.g., "debug", "release", "samply")
+/// * `bin_opt` - Binary option ("--bin" or "--example")
+/// * `bin_name` - Name of the binary or example
+///
+/// # Returns
+///
+/// Path to the built binary in the target directory
 fn get_bin_path(
     root: &std::path::Path,
     profile: &str,
@@ -122,6 +139,9 @@ mod tests {
     }
 }
 
+/// Entry point for the cargo-samply application.
+///
+/// Initializes error handling and calls the main run function.
 fn main() {
     if let Err(err) = run() {
         error!("{}", err);
@@ -129,6 +149,22 @@ fn main() {
     }
 }
 
+/// Main application logic for cargo-samply.
+///
+/// This function orchestrates the entire process:
+/// 1. Parse command-line arguments
+/// 2. Set up logging
+/// 3. Validate arguments
+/// 4. Locate the cargo project
+/// 5. Ensure the samply profile exists
+/// 6. Determine which binary to run
+/// 7. Build the project
+/// 8. Run samply or the binary directly
+///
+/// # Returns
+///
+/// - `Ok(())` - Operation completed successfully
+/// - `Err(Error)` - Various errors can occur during the process
 fn run() -> error::Result<()> {
     // Handle both direct execution and cargo subcommand
     let args: Vec<String> = std::env::args().collect();

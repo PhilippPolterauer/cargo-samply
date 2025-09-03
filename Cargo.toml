@@ -8,7 +8,17 @@ description = "A cargo subcommand to automate the process of running samply for 
 readme = "README.md"
 repository = "https://github.com/PhilippPolterauer/cargo-samply.git"
 homepage = "https://github.com/PhilippPolterauer/cargo-samply.git"
-documentation = "https://github.com/PhilippPolterauer/cargo-samply.git"
+documentation = "https://docs.rs/cargo-samply"
+keywords = ["cargo", "profiling", "samply", "performance", "subcommand"]
+categories = ["development-tools", "command-line-utilities"]
+
+[[bin]]
+name = "cargo-samply"
+path = "src/main.rs"
+
+[lib]
+name = "cargo_samply"
+path = "src/lib.rs"
 
 [dependencies]
 cargo_toml = "0.22.3"

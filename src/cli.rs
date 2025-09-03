@@ -1,10 +1,31 @@
+//! Command-line interface configuration for cargo-samply.
+//!
+//! This module defines the CLI structure using `clap` with support for both
+//! direct execution (`cargo-samply`) and cargo subcommand usage (`cargo samply`).
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use cargo_samply::cli::{CargoCli, Config};
+//! use clap::Parser;
+//!
+//! // Parse command-line arguments
+//! let CargoCli::Samply(config) = CargoCli::parse();
+//! println!("Profile: {}", config.profile);
+//! ```
+
 use clap::Parser;
 
+/// The main cargo CLI enum that wraps the samply subcommand.
+///
+/// This enum is designed to work with cargo's subcommand protocol,
+/// allowing the tool to be called as both `cargo samply` and `cargo-samply`.
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "cargo")]
 #[command(bin_name = "cargo")]
 #[command(styles = CLAP_STYLING)]
 pub enum CargoCli {
+    /// The samply subcommand
     Samply(Config),
 }
 
@@ -18,7 +39,28 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
     .valid(clap_cargo::style::VALID)
     .invalid(clap_cargo::style::INVALID);
 
-/// A cargo subcommand for profiling binaries using samply
+/// Configuration structure for the cargo-samply command.
+///
+/// This struct contains all the command-line options and arguments
+/// that can be passed to cargo-samply.
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_samply::cli::Config;
+///
+/// let config = Config {
+///     args: vec!["--help".to_string()],
+///     profile: "samply".to_string(),
+///     bin: Some("my-binary".to_string()),
+///     example: None,
+///     features: vec!["feature1".to_string(), "feature2".to_string()],
+///     no_default_features: false,
+///     verbose: false,
+///     quiet: false,
+///     no_samply: false,
+/// };
+/// ```
 #[derive(clap::Args)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {

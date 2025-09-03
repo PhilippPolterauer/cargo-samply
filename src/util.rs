@@ -1,3 +1,26 @@
+//! Utility functions for cargo-samply.
+//!
+//! This module contains helper functions for:
+//! - Locating cargo projects
+//! - Managing the samply profile in Cargo.toml
+//! - Determining which binary to run
+//! - Command execution with logging
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use cargo_samply::util::{locate_project, guess_bin, ensure_samply_profile};
+//! use cargo_samply::error::Result;
+//!
+//! fn example() -> Result<()> {
+//!     let cargo_toml = locate_project()?;
+//!     ensure_samply_profile(&cargo_toml)?;
+//!     let binary = guess_bin(&cargo_toml)?;
+//!     println!("Will run binary: {}", binary);
+//!     Ok(())
+//! }
+//! ```
+
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -6,8 +29,28 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
+use log::{debug, info};
 use crate::error::{self, IOResultExt};
 
+/// Locates the cargo project by running `cargo locate-project`.
+///
+/// This function uses cargo's built-in project location functionality
+/// to find the path to the project's `Cargo.toml` file.
+///
+/// # Returns
+///
+/// - `Ok(PathBuf)` - Path to the `Cargo.toml` file
+/// - `Err(Error::CargoLocateProjectFailed)` - If cargo command fails
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_samply::util::locate_project;
+///
+/// let cargo_toml = locate_project()?;
+/// println!("Found Cargo.toml at: {}", cargo_toml.display());
+/// # Ok::<(), cargo_samply::error::Error>(())
+/// ```
 pub fn locate_project() -> error::Result<PathBuf> {
     let output = Command::new("cargo")
         .args(vec![
@@ -24,12 +67,40 @@ pub fn locate_project() -> error::Result<PathBuf> {
     Ok(PathBuf::from(from_utf8(&output.stdout)?.trim()))
 }
 
+/// The samply profile configuration that gets added to Cargo.toml.
+///
+/// This profile inherits from the release profile but enables debug symbols
+/// for accurate profiling information.
 const SAMPLY_PROFILE: &str = "
 [profile.samply]
 inherits = \"release\"
 debug = true
 ";
 
+/// Ensures that the samply profile exists in the given Cargo.toml file.
+///
+/// This function checks if a `[profile.samply]` section exists in the Cargo.toml.
+/// If it doesn't exist, it appends the profile configuration to the file.
+///
+/// # Arguments
+///
+/// * `cargo_toml` - Path to the Cargo.toml file
+///
+/// # Returns
+///
+/// - `Ok(())` - Profile exists or was successfully added
+/// - `Err(Error)` - If file operations fail
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_samply::util::ensure_samply_profile;
+/// use std::path::Path;
+///
+/// let cargo_toml = Path::new("Cargo.toml");
+/// ensure_samply_profile(cargo_toml)?;
+/// # Ok::<(), cargo_samply::error::Error>(())
+/// ```
 pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
     let cargo_toml_content: String = fs::read_to_string(cargo_toml).path_ctx(cargo_toml)?;
     let manifest = toml::Table::from_str(&cargo_toml_content)?;
@@ -49,6 +120,35 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
     Ok(())
 }
 
+/// Determines which binary to run based on the Cargo.toml configuration.
+///
+/// This function uses the following priority order:
+/// 1. If `default-run` is specified in `[package]`, use that binary
+/// 2. If there's exactly one `[[bin]]` section, use that binary
+/// 3. If there are no `[[bin]]` sections, return `NoBinaryFound`
+/// 4. If there are multiple `[[bin]]` sections, return `BinaryToRunNotDetermined`
+///
+/// # Arguments
+///
+/// * `cargo_toml` - Path to the Cargo.toml file
+///
+/// # Returns
+///
+/// - `Ok(String)` - Name of the binary to run
+/// - `Err(Error::NoBinaryFound)` - No binary targets found
+/// - `Err(Error::BinaryToRunNotDetermined)` - Multiple binaries, no default
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_samply::util::guess_bin;
+/// use std::path::Path;
+///
+/// let cargo_toml = Path::new("Cargo.toml");
+/// let binary_name = guess_bin(cargo_toml)?;
+/// println!("Will run binary: {}", binary_name);
+/// # Ok::<(), cargo_samply::error::Error>(())
+/// ```
 pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
     let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
     let default_run = manifest.package.and_then(|p| p.default_run);
@@ -63,9 +163,37 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
     }
 }
 
-/// Extension trait for `Command` that add a `call` method which logs the command in debug mode.
+/// Extension trait for `Command` that adds logging and convenience methods.
+///
+/// This trait provides additional functionality for running commands
+/// with automatic logging in debug mode and error handling.
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_samply::util::CommandExt;
+/// use std::process::Command;
+///
+/// let exit_status = Command::new("cargo")
+///     .args(&["build", "--release"])
+///     .call()?;
+/// 
+/// if exit_status.success() {
+///     println!("Build succeeded!");
+/// }
+/// # Ok::<(), cargo_samply::error::Error>(())
+/// ```
 pub trait CommandExt {
+    /// Execute the command and return the exit status.
+    ///
+    /// This method automatically logs the command and its arguments
+    /// in debug mode before execution.
     fn call(&mut self) -> error::Result<ExitStatus>;
+    
+    /// Log the command and its arguments in debug mode.
+    ///
+    /// This method is called automatically by `call()` but can also
+    /// be used standalone for debugging purposes.
     fn log(&mut self) -> &mut Command;
 }
 
