@@ -14,3 +14,11 @@ clean-main:
 # Clean everything (main project + test projects)
 clean-all: clean clean-main
     echo "All target directories cleaned."
+
+# Run tests (matches CI configuration)
+test:
+     cargo test --release
+
+# Run tests with trycmd overwrite (for updating test snapshots)
+test-overwrite:
+    TRYCMD=overwrite cargo test --release

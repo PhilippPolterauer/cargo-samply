@@ -8,7 +8,8 @@ fn trycmd() {
         .collect::<Vec<_>>();
     let test = trycmd::TestCases::new();
     let mut t = test
-        // .case("README.md")
+        .env("TERM", "dumb")
+        .env("CARGO_TERM_QUIET", "true")
         .case("tests/*.trycmd")
         .register_bin("cargo", trycmd::schema::Bin::Path(which("cargo").unwrap()));
 
