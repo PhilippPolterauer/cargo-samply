@@ -1,5 +1,5 @@
 ```console
-$ cargo-samply samply --no-samply
+$ cargo-samply --no-samply
 ? 1
 error: The binary to run can't be determined. Use the `--bin` option to specify a binary, or the `default-run` manifest key.
 

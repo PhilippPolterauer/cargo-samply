@@ -23,5 +23,5 @@ fn trycmd() {
             trycmd::schema::Bin::Path(pth.clone()),
         );
     }
-    t.register_bin("cargo-samply", trycmd::cargo::cargo_bin("cargo-samply"));
+    t = t.register_bin("cargo-samply", trycmd::cargo::cargo_bin("cargo-samply"));
 }

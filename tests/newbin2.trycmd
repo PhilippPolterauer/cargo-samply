@@ -1,5 +1,3 @@
-# Test case for running a binary with verbose output and no samply
-
 ```console
 $ cargo-samply samply -v --no-samply
 debug: running "cargo" with args: ["locate-project", "--workspace", "--message-format", "plain"]

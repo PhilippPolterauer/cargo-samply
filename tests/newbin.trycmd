@@ -4,3 +4,10 @@ $ cargo-samply samply
 error: No binary found in 'Cargo.toml'
 
 ```
+
+```console
+$ cargo-samply
+? 1
+error: No binary found in 'Cargo.toml'
+
+```
