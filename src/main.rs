@@ -10,7 +10,6 @@ use std::vec;
 
 use clap::Parser;
 
-use crate::cli::CargoCli;
 use crate::util::{ensure_samply_profile, guess_bin, locate_project, CommandExt};
 
 fn get_bin_path(
@@ -131,7 +130,23 @@ fn main() {
 }
 
 fn run() -> error::Result<()> {
-    let CargoCli::Samply(cli) = CargoCli::parse();
+    // Handle both direct execution and cargo subcommand
+    let args: Vec<String> = std::env::args().collect();
+    let cli = if args.len() > 1 && args[1] == "samply" {
+        // Called via cargo: cargo samply [args...]
+        crate::cli::CargoCli::parse()
+    } else {
+        // Called directly: cargo-samply [args...]
+        // Parse as if "samply" was the first argument
+        let mut modified_args = vec!["cargo".to_string(), "samply".to_string()];
+        modified_args.extend(args.into_iter().skip(1));
+        crate::cli::CargoCli::try_parse_from(modified_args).map_err(|e| {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }).unwrap()
+    };
+    
+    let crate::cli::CargoCli::Samply(cli) = cli;
     let log_level = if cli.quiet {
         log::Level::Error
     } else if cli.verbose {
