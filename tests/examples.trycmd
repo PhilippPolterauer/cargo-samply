@@ -1,6 +1,5 @@
 ```console
 $ cargo-samply samply --no-samply --example hello
-    Finished `samply` profile [optimized + debuginfo] target(s) in [..]s
 Hello, world!
 
 ```

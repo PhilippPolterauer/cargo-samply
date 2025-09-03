@@ -8,12 +8,13 @@ fn trycmd() {
         .collect::<Vec<_>>();
     let test = trycmd::TestCases::new();
     let mut t = test
-        // .case("README.md")
+        .env("TERM", "dumb")
+        .env("CARGO_TERM_QUIET", "true")
         .case("tests/*.trycmd")
         .register_bin("cargo", trycmd::schema::Bin::Path(which("cargo").unwrap()));
 
     for pth in cargo_bins.iter().filter(|pth| {
-        !pth.extension().is_some_and(|pth| pth == "exe")
+        pth.extension().is_some_and(|pth| pth == "exe")
             && pth.file_name().is_some_and(|p| p != "cargo-samply")
     }) {
         println!("{}", pth.file_name().unwrap().to_string_lossy());

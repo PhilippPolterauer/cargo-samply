@@ -45,6 +45,133 @@ fn get_bin_path(
     }
 }
 
+/// Entry point for the cargo-samply application.
+///
+/// Initializes error handling and calls the main run function.
+fn main() {
+    if let Err(err) = run() {
+        error!("{}", err);
+        std::process::exit(1);
+    }
+}
+
+/// Main application logic for cargo-samply.
+///
+/// This function orchestrates the entire process:
+/// 1. Parse command-line arguments
+/// 2. Set up logging
+/// 3. Validate arguments
+/// 4. Locate the cargo project
+/// 5. Ensure the samply profile exists
+/// 6. Determine which binary to run
+/// 7. Build the project
+/// 8. Run samply or the binary directly
+///
+/// # Returns
+///
+/// - `Ok(())` - Operation completed successfully
+/// - `Err(Error)` - Various errors can occur during the process
+fn run() -> error::Result<()> {
+    // Handle both direct execution and cargo subcommand
+    let args: Vec<String> = std::env::args().collect();
+    let cli = if args.len() > 1 && args[1] == "samply" {
+        // Called via cargo: cargo samply [args...]
+        crate::cli::CargoCli::parse()
+    } else {
+        // Called directly: cargo-samply [args...]
+        // Parse as if "samply" was the first argument
+        let mut modified_args = vec!["cargo".to_string(), "samply".to_string()];
+        modified_args.extend(args.into_iter().skip(1));
+        crate::cli::CargoCli::try_parse_from(modified_args)
+            .map_err(|e| {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            })
+            .unwrap()
+    };
+
+    let crate::cli::CargoCli::Samply(cli) = cli;
+    let log_level = if cli.quiet {
+        log::Level::Error
+    } else if cli.verbose {
+        log::Level::Debug
+    } else {
+        log::Level::Warn
+    };
+    ocli::init(log_level)?;
+
+    if cli.bin.is_some() && cli.example.is_some() {
+        return Err(error::Error::BinAndExampleMutuallyExclusive);
+    }
+
+    // check if cargo.toml exists
+    // check project path using locate-project
+    let cargo_toml = locate_project()?;
+    debug!("cargo.toml: {:?}", cargo_toml);
+
+    // check if profile exists
+    // if not add profile
+    // if yes print warning
+    if cli.profile == "samply" {
+        ensure_samply_profile(&cargo_toml)?;
+    }
+
+    let (bin_opt, bin_name) = if let Some(bin) = cli.bin {
+        ("--bin", bin)
+    } else if let Some(example) = cli.example {
+        ("--example", example)
+    } else {
+        ("--bin", guess_bin(&cargo_toml)?)
+    };
+
+    let features_str = if !cli.features.is_empty() {
+        Some(cli.features.join(","))
+    } else {
+        None
+    };
+
+    let mut args = vec!["build", "--profile", &cli.profile, &bin_opt, &bin_name];
+    if let Some(ref features) = features_str {
+        args.push("--features");
+        args.push(features);
+    }
+    if cli.no_default_features {
+        args.push("--no-default-features");
+    }
+    let exit_code = Command::new("cargo").args(args).call()?;
+    if !exit_code.success() {
+        return Err(error::Error::CargoBuildFailed);
+    }
+
+    // run samply on the binary
+    // if it fails print error
+    let root = cargo_toml.parent().unwrap();
+    let bin_path = get_bin_path(root, &cli.profile, bin_opt, &bin_name);
+
+    if !bin_path.exists() {
+        return Err(error::Error::BinaryNotFound { path: bin_path });
+    }
+
+    if !cli.no_samply {
+        let samply_available = std::process::Command::new("samply")
+            .arg("--help")
+            .status()
+            .is_ok();
+        if !samply_available {
+            return Err(error::Error::SamplyNotFound);
+        }
+        Command::new("samply")
+            .arg("record")
+            .arg(bin_path)
+            .args(cli.args)
+            .call()?;
+    } else {
+        Command::new(bin_path).args(cli.args).call()?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,129 +264,4 @@ mod tests {
             std::path::Path::new("/project/target/debug/examples/myexample")
         );
     }
-}
-
-/// Entry point for the cargo-samply application.
-///
-/// Initializes error handling and calls the main run function.
-fn main() {
-    if let Err(err) = run() {
-        error!("{}", err);
-        std::process::exit(1);
-    }
-}
-
-/// Main application logic for cargo-samply.
-///
-/// This function orchestrates the entire process:
-/// 1. Parse command-line arguments
-/// 2. Set up logging
-/// 3. Validate arguments
-/// 4. Locate the cargo project
-/// 5. Ensure the samply profile exists
-/// 6. Determine which binary to run
-/// 7. Build the project
-/// 8. Run samply or the binary directly
-///
-/// # Returns
-///
-/// - `Ok(())` - Operation completed successfully
-/// - `Err(Error)` - Various errors can occur during the process
-fn run() -> error::Result<()> {
-    // Handle both direct execution and cargo subcommand
-    let args: Vec<String> = std::env::args().collect();
-    let cli = if args.len() > 1 && args[1] == "samply" {
-        // Called via cargo: cargo samply [args...]
-        crate::cli::CargoCli::parse()
-    } else {
-        // Called directly: cargo-samply [args...]
-        // Parse as if "samply" was the first argument
-        let mut modified_args = vec!["cargo".to_string(), "samply".to_string()];
-        modified_args.extend(args.into_iter().skip(1));
-        crate::cli::CargoCli::try_parse_from(modified_args).map_err(|e| {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        }).unwrap()
-    };
-    
-    let crate::cli::CargoCli::Samply(cli) = cli;
-    let log_level = if cli.quiet {
-        log::Level::Error
-    } else if cli.verbose {
-        log::Level::Debug
-    } else {
-        log::Level::Warn
-    };
-    ocli::init(log_level)?;
-
-    if cli.bin.is_some() && cli.example.is_some() {
-        return Err(error::Error::BinAndExampleMutuallyExclusive);
-    }
-
-    // check if cargo.toml exists
-    // check project path using locate-project
-    let cargo_toml = locate_project()?;
-    debug!("cargo.toml: {:?}", cargo_toml);
-
-    // check if profile exists
-    // if not add profile
-    // if yes print warning
-    if cli.profile == "samply" {
-        ensure_samply_profile(&cargo_toml)?;
-    }
-
-    let (bin_opt, bin_name) = if let Some(bin) = cli.bin {
-        ("--bin", bin)
-    } else if let Some(example) = cli.example {
-        ("--example", example)
-    } else {
-        ("--bin", guess_bin(&cargo_toml)?)
-    };
-
-    let features_str = if !cli.features.is_empty() {
-        Some(cli.features.join(","))
-    } else {
-        None
-    };
-
-    let mut args = vec!["build", "--profile", &cli.profile, &bin_opt, &bin_name];
-    if let Some(ref features) = features_str {
-        args.push("--features");
-        args.push(features);
-    }
-    if cli.no_default_features {
-        args.push("--no-default-features");
-    }
-    let exit_code = Command::new("cargo").args(args).call()?;
-    if !exit_code.success() {
-        return Err(error::Error::CargoBuildFailed);
-    }
-
-    // run samply on the binary
-    // if it fails print error
-    let root = cargo_toml.parent().unwrap();
-    let bin_path = get_bin_path(root, &cli.profile, bin_opt, &bin_name);
-
-    if !bin_path.exists() {
-        return Err(error::Error::BinaryNotFound { path: bin_path });
-    }
-
-    if !cli.no_samply {
-        let samply_available = std::process::Command::new("samply")
-            .arg("--help")
-            .status()
-            .is_ok();
-        if !samply_available {
-            return Err(error::Error::SamplyNotFound);
-        }
-        Command::new("samply")
-            .arg("record")
-            .arg(bin_path)
-            .args(cli.args)
-            .call()?;
-    } else {
-        Command::new(bin_path).args(cli.args).call()?;
-    }
-
-    Ok(())
 }

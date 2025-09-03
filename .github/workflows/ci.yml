@@ -12,24 +12,30 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
 
-      - name: Run build
-        uses: actions-rs/cargo@v1
+      - name: "Cache cargo"
+        id: cache-cargo
+        uses: "actions/cache@v4"
         with:
-          command: build
-          args: --release
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          save-always: true
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Run tests
-        run: cargo test --release
-
-      - name: Run trycmd tests
-        run: cargo test --test cli_tests
+        run:  cargo test --release
+        env:
+          NO_COLOR: 1
+          TERM: dumb
+          CARGO_TERM_COLOR: never
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1

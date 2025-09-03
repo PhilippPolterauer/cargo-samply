@@ -1,0 +1,25 @@
+{
+  "default": true,
+  "MD013": {
+    "line_length": 120,
+    "code_blocks": false,
+    "tables": false,
+    "headings": false
+  },
+  "MD024": {
+    "siblings_only": true
+  },
+  "MD032": false,
+  "MD034": false,
+  "CHANGELOG.md": {
+    "MD013": false,
+    "MD024": false,
+    "MD032": false,
+    "MD034": false,
+    "MD022": false,
+    "MD025": false,
+    "MD026": false,
+    "MD029": false,
+    "MD033": false
+  }
+}
