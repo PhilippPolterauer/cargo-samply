@@ -135,13 +135,12 @@ _bump LEVEL:
         
         # Add new version section with previous unreleased content
         echo "## [$NEW_VERSION] - $TODAY"
-        echo ""
         
-        # Extract content between [Unreleased] and next version section
-        sed -n '/## \[Unreleased\]/,/## \[/p' CHANGELOG.md | tail -n +2 | head -n -1
+        # Extract content between [Unreleased] and next version section (excluding the [Unreleased] line itself)
+        sed -n '/## \[Unreleased\]/,/## \[[0-9]/p' CHANGELOG.md | sed '1d;$d'
         
-        # Add rest of changelog (from first version section onwards)
-        sed -n '/## \[/,$p' CHANGELOG.md | grep -v "## \[Unreleased\]" || true
+        # Add rest of changelog (from first numbered version section onwards)
+        sed -n '/## \[[0-9]/,$p' CHANGELOG.md
         
     } > CHANGELOG.md.tmp
     
