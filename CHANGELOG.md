@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - Date
+
+## [0.3.2] - 2025-09-03
+
+### Fixed
+
+- upgraded all packages to be latest versions
+- License text and README formatting
 
 ## [0.3.1] - 2025-09-03
 
@@ -22,8 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced bin guessing logic with workspace support using `cargo_metadata`
 - Improved error messages with actionable suggestions and copy-pasteable commands
 - Comprehensive workspace detection for binaries and examples
-- Version bump commands: `just bump-patch`, `just bump-minor`, `just bump-major`
-- Dry run functionality: `just bump-dry LEVEL` to preview version changes
 
 ### Fixed
 
