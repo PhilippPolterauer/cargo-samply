@@ -154,18 +154,12 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
 
     for package in metadata.packages {
         for target in package.targets {
-            match target.kind.as_slice() {
-                kinds if kinds.contains(&"bin".to_string()) => {
-                    if !binaries.contains(&target.name) {
-                        binaries.push(target.name);
-                    }
+            if target.is_bin() {
+                if !binaries.contains(&target.name) {
+                    binaries.push(target.name);
                 }
-                kinds if kinds.contains(&"example".to_string()) => {
-                    if !examples.contains(&target.name) {
-                        examples.push(target.name);
-                    }
-                }
-                _ => {}
+            } else if target.is_example() && !examples.contains(&target.name) {
+                examples.push(target.name);
             }
         }
     }
