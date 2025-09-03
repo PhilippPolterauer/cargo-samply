@@ -1,6 +1,6 @@
 ```console
-$ cargo-samply --no-samply --bin another World3
-    Finished samply [optimized + debuginfo] target(s) in [..]s
+$ cargo-samply samply --no-samply --bin another -- World3
+    Finished `samply` profile [optimized + debuginfo] target(s) in [..]s
 Hello, World3!
 
 ```

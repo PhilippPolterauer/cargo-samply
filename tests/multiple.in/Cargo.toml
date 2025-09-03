@@ -1,0 +1,17 @@
+[package]
+name = "multiple-package"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "first"
+path = "src/first.rs"
+
+[[bin]]
+name = "second"
+path = "src/second.rs"
+
+[profile.samply]
+inherits = "release"
+debug = true

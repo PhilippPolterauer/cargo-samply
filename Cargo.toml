@@ -1,22 +1,33 @@
 [package]
 name = "cargo-samply"
 edition = "2021"
-version = "0.2.0"
+version = "0.3.0"
 license = "MIT"
 authors = ["Philipp Polterauer <philipp.polterauer@gmail.com>"]
 description = "A cargo subcommand to automate the process of running samply for project binaries"
 readme = "README.md"
 repository = "https://github.com/PhilippPolterauer/cargo-samply.git"
 homepage = "https://github.com/PhilippPolterauer/cargo-samply.git"
-documentation = "https://github.com/PhilippPolterauer/cargo-samply.git"
+documentation = "https://docs.rs/cargo-samply"
+keywords = ["cargo", "profiling", "samply", "performance", "subcommand"]
+categories = ["development-tools", "command-line-utilities"]
+
+[[bin]]
+name = "cargo-samply"
+path = "src/main.rs"
+
+[lib]
+name = "cargo_samply"
+path = "src/lib.rs"
 
 [dependencies]
-cargo_toml = "0.18.0"
-thiserror = "1.0.56"
+cargo_toml = "0.22.3"
+thiserror = "2.0.16"
 clap = { version = "4.4.12", features = ["derive"] }
 log = { version = "0.4", features = ["std"] }
-toml = { version = "0.8.8" }
-ocli = "0.1.0"
+toml = { version = "0.9.5" }
+ocli = "0.2.1"
+clap-cargo = "0.17.0"
 
 [profile.samply]
 inherits = "release"
@@ -26,3 +37,4 @@ debug = true
 regex = "1.10.2"
 trycmd = "0.14.20"
 which = { version = "6.0.0", features = ["regex"] }
+tempfile = "3"
