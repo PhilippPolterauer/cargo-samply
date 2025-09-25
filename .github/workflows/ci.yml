@@ -9,6 +9,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - windows-2025
     steps:
       - uses: actions/checkout@v1
       - name: Install Rust toolchain
