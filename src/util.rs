@@ -318,11 +318,39 @@ impl CommandExt for Command {
         Ok(self.spawn()?.wait()?)
     }
     fn log(&mut self) -> &mut Command {
-        debug!(
-            "running {:?} with args: {:?}",
-            self.get_program(),
-            self.get_args().collect::<Vec<&std::ffi::OsStr>>()
-        );
+        // Normalize program and args for logging so test expectations are
+        // platform-independent. Replace the current working directory with
+        // `[CWD]`, use forward slashes, and on Windows strip the `.exe`
+        // extension for readability (the actual command will still run with
+        // the correct extension).
+        fn normalize(os: &std::ffi::OsStr) -> String {
+            let mut s = os.to_string_lossy().to_string();
+            // Normalize separators
+            s = s.replace('\\', "/");
+            // Replace current dir prefix with [CWD]
+            if let Ok(cwd) = std::env::current_dir() {
+                let cwd_s = cwd.to_string_lossy().to_string().replace('\\', "/");
+                if s.starts_with(&cwd_s) {
+                    s = s.replacen(&cwd_s, "[CWD]", 1);
+                }
+            }
+            // Strip .exe on Windows for logging to match test fixtures
+            #[cfg(windows)]
+            {
+                if s.to_lowercase().ends_with(".exe") {
+                    s.truncate(s.len() - 4);
+                }
+            }
+            s
+        }
+
+        let prog = normalize(self.get_program());
+        let args = self
+            .get_args()
+            .map(|a| normalize(a))
+            .collect::<Vec<String>>();
+
+        debug!("running \"{}\" with args: {:?}", prog, args);
         self
     }
 }

@@ -55,10 +55,12 @@ fn get_bin_path(
                 path.set_extension("exe");
             }
         }
-        return path;
+        path
     }
-
-    path
+    #[cfg(not(windows))]
+    {
+        path
+    }
 }
 
 /// Entry point for the cargo-samply application.
