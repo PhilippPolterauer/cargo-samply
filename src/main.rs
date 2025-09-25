@@ -35,13 +35,7 @@ fn get_bin_path(
     bin_opt: &str,
     bin_name: &str,
 ) -> std::path::PathBuf {
-
-    #[cfg(windows)]
-    let mut path;
-    #[cfg(not(windows))]
-    let path;
-
-    path = if bin_opt == "--bin" {
+    let path = if bin_opt == "--bin" {
         root.join("target").join(profile).join(bin_name)
     } else {
         root.join("target")
@@ -53,11 +47,14 @@ fn get_bin_path(
     // On Windows, built executables have the `.exe` extension. Append it
     // when running on that platform to make existence checks and command
     // invocation work correctly.
-    #[cfg(windows)]
-    {
-        if path.extension().is_none() {
-            path.set_extension("exe");
+    #[cfg(windows)]{
+        let mut path = path;
+        {
+            if path.extension().is_none() {
+                path.set_extension("exe");
+            }
         }
+        return path;
     }
 
     path
