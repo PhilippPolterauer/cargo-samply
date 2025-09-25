@@ -14,7 +14,9 @@ fn trycmd() {
     if cfg!(windows) {
         t = t.case("tests/*.trycmd");
     } else {
-        t = t.case("tests/*.trycmd").case("tests/skip-on-windows/*.trycmd");
+        t = t
+            .case("tests/*.trycmd")
+            .case("tests/skip-on-windows/*.trycmd");
     }
 
     t = t.register_bin("cargo", trycmd::schema::Bin::Path(which("cargo").unwrap()));
