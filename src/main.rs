@@ -35,13 +35,31 @@ fn get_bin_path(
     bin_opt: &str,
     bin_name: &str,
 ) -> std::path::PathBuf {
-    if bin_opt == "--bin" {
+    let path = if bin_opt == "--bin" {
         root.join("target").join(profile).join(bin_name)
     } else {
         root.join("target")
             .join(profile)
             .join("examples")
             .join(bin_name)
+    };
+
+    // On Windows, built executables have the `.exe` extension. Append it
+    // when running on that platform to make existence checks and command
+    // invocation work correctly.
+    #[cfg(windows)]
+    {
+        let mut path = path;
+        {
+            if path.extension().is_none() {
+                path.set_extension("exe");
+            }
+        }
+        path
+    }
+    #[cfg(not(windows))]
+    {
+        path
     }
 }
 
@@ -252,16 +270,23 @@ mod tests {
     fn test_get_bin_path_bin() {
         let root = std::path::Path::new("/project");
         let path = get_bin_path(root, "release", "--bin", "mybin");
-        assert_eq!(path, std::path::Path::new("/project/target/release/mybin"));
+        let expected = if cfg!(windows) {
+            std::path::Path::new("/project/target/release/mybin.exe")
+        } else {
+            std::path::Path::new("/project/target/release/mybin")
+        };
+        assert_eq!(path, expected);
     }
 
     #[test]
     fn test_get_bin_path_example() {
         let root = std::path::Path::new("/project");
         let path = get_bin_path(root, "debug", "--example", "myexample");
-        assert_eq!(
-            path,
+        let expected = if cfg!(windows) {
+            std::path::Path::new("/project/target/debug/examples/myexample.exe")
+        } else {
             std::path::Path::new("/project/target/debug/examples/myexample")
-        );
+        };
+        assert_eq!(path, expected);
     }
 }

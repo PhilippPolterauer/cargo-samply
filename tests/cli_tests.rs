@@ -7,11 +7,19 @@ fn trycmd() {
         .unwrap()
         .collect::<Vec<_>>();
     let test = trycmd::TestCases::new();
-    let mut t = test
-        .env("TERM", "dumb")
-        .env("CARGO_TERM_QUIET", "true")
-        .case("tests/*.trycmd")
-        .register_bin("cargo", trycmd::schema::Bin::Path(which("cargo").unwrap()));
+    let mut t = test.env("TERM", "dumb").env("CARGO_TERM_QUIET", "true");
+
+    // Load trycmd cases. On Windows we avoid loading cases known to be
+    // problematic by not including the `tests/skip-on-windows` folder.
+    if cfg!(windows) {
+        t = t.case("tests/*.trycmd");
+    } else {
+        t = t
+            .case("tests/*.trycmd")
+            .case("tests/skip-on-windows/*.trycmd");
+    }
+
+    t = t.register_bin("cargo", trycmd::schema::Bin::Path(which("cargo").unwrap()));
 
     for pth in cargo_bins.iter().filter(|pth| {
         pth.extension().is_some_and(|pth| pth == "exe")
