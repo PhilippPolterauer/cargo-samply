@@ -47,7 +47,8 @@ fn get_bin_path(
     // On Windows, built executables have the `.exe` extension. Append it
     // when running on that platform to make existence checks and command
     // invocation work correctly.
-    #[cfg(windows)]{
+    #[cfg(windows)]
+    {
         let mut path = path;
         {
             if path.extension().is_none() {
