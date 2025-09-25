@@ -53,10 +53,10 @@ jobs:
 
       - name: Always Save Cache
         id: cache-save
-        if: always() 
+        if: always() && steps.cache-cargo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ steps.cache-cargo.outputs.cache-primary-key }}
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/

@@ -35,7 +35,13 @@ fn get_bin_path(
     bin_opt: &str,
     bin_name: &str,
 ) -> std::path::PathBuf {
-    let path = if bin_opt == "--bin" {
+
+    #[cfg(windows)]
+    let mut path;
+    #[cfg(not(windows))]
+    let path;
+
+    path = if bin_opt == "--bin" {
         root.join("target").join(profile).join(bin_name)
     } else {
         root.join("target")
