@@ -9,9 +9,10 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - windows-2025
+          - windows-latest
+          - macos-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -19,7 +20,7 @@ jobs:
 
       - name: "Cache cargo"
         id: cache-cargo
-        uses: "actions/cache@v4"
+        uses: "actions/cache/restore@v4"
         with:
           path: |
             ~/.cargo/bin/
@@ -27,9 +28,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          save-always: true
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Run tests
         run:  cargo test --release
@@ -52,5 +51,17 @@ jobs:
           command: clippy
           args: --all-targets --all-features
 
+      - name: Always Save Cache
+        id: cache-save
+        if: always() 
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
 
 
