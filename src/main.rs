@@ -11,6 +11,7 @@ mod error;
 mod util;
 
 use std::fs;
+use std::io;
 use std::mem;
 use std::process::Command;
 use std::time::SystemTime;
@@ -225,6 +226,17 @@ fn prepare_runtime_args(
     args
 }
 
+fn configure_samply_command(
+    cmd: &mut Command,
+    bin_path: &std::path::Path,
+    runtime_args: &[String],
+) {
+    cmd.arg("record").arg(bin_path);
+    if !runtime_args.is_empty() {
+        cmd.arg("--").args(runtime_args);
+    }
+}
+
 /// Entry point for the cargo-samply application.
 ///
 /// Initializes error handling and calls the main run function.
@@ -333,19 +345,15 @@ fn run() -> error::Result<()> {
     let runtime_args = prepare_runtime_args(&target, bench_requires_flag, mem::take(&mut cli.args));
 
     if !cli.no_samply {
-        let samply_available = std::process::Command::new("samply")
-            .arg("--help")
-            .status()
-            .is_ok();
-        if !samply_available {
-            return Err(error::Error::SamplyNotFound);
-        }
         let mut samply_cmd = Command::new("samply");
-        samply_cmd.arg("record").arg("--").arg(&bin_path);
-        if !runtime_args.is_empty() {
-            samply_cmd.args(&runtime_args);
+        configure_samply_command(&mut samply_cmd, &bin_path, &runtime_args);
+        match samply_cmd.call() {
+            Ok(_) => {}
+            Err(error::Error::Io(io_err)) if io_err.kind() == io::ErrorKind::NotFound => {
+                return Err(error::Error::SamplyNotFound);
+            }
+            Err(err) => return Err(err),
         }
-        samply_cmd.call()?;
     } else {
         Command::new(&bin_path).args(&runtime_args).call()?;
     }
@@ -356,6 +364,7 @@ fn run() -> error::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{ffi::OsString, path::Path};
 
     #[test]
     fn test_multiple_features_handling() {
@@ -380,6 +389,35 @@ mod tests {
         };
 
         assert_eq!(features_str, Some("feature1,feature2".to_string()));
+    }
+
+    #[test]
+    fn samply_command_places_binary_before_separator() {
+        let mut cmd = Command::new("samply");
+        let runtime_args = vec!["--bench".to_string(), "throughput".to_string()];
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args);
+        let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
+
+        let expected = vec![
+            OsString::from("record"),
+            OsString::from("target/bin"),
+            OsString::from("--"),
+            OsString::from("--bench"),
+            OsString::from("throughput"),
+        ];
+
+        assert_eq!(args, expected);
+    }
+
+    #[test]
+    fn samply_command_skips_separator_without_runtime_args() {
+        let mut cmd = Command::new("samply");
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &[]);
+        let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
+
+        let expected = vec![OsString::from("record"), OsString::from("target/bin")];
+
+        assert_eq!(args, expected);
     }
 
     #[test]
