@@ -1,0 +1,18 @@
+[package]
+name = "bench_suffix_fixture"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "bench_suffix_fixture"
+path = "src/lib.rs"
+
+[[bench]]
+name = "column_sum_bench"
+path = "benches/column_sum.rs"
+harness = false
+
+[profile.samply]
+inherits = "release"
+debug = true

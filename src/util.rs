@@ -37,6 +37,7 @@ use log::{debug, info};
 pub struct WorkspaceMetadata {
     pub binaries: Vec<String>,
     pub examples: Vec<String>,
+    pub benches: Vec<String>,
 }
 
 /// Locates the cargo project by running `cargo locate-project`.
@@ -151,6 +152,7 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
 
     let mut binaries = Vec::new();
     let mut examples = Vec::new();
+    let mut benches = Vec::new();
 
     for package in metadata.packages {
         for target in package.targets {
@@ -158,16 +160,73 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
                 if !binaries.contains(&target.name) {
                     binaries.push(target.name);
                 }
-            } else if target.is_example() && !examples.contains(&target.name) {
-                examples.push(target.name);
+            } else if target.is_example() {
+                if !examples.contains(&target.name) {
+                    examples.push(target.name);
+                }
+            } else if target.kind.contains(&cargo_metadata::TargetKind::Bench) {
+                if !benches.contains(&target.name) {
+                    benches.push(target.name);
+                }
             }
         }
     }
 
     binaries.sort();
     examples.sort();
+    benches.sort();
 
-    Ok(WorkspaceMetadata { binaries, examples })
+    Ok(WorkspaceMetadata {
+        binaries,
+        examples,
+        benches,
+    })
+}
+
+/// Resolves the actual bench target name, allowing shorthand forms that
+/// omit trailing `_bench` or `-bench` suffixes.
+pub fn resolve_bench_target_name(cargo_toml: &Path, requested: &str) -> error::Result<String> {
+    let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
+    let local_benches: Vec<String> = manifest
+        .bench
+        .iter()
+        .filter_map(|bench| bench.name.clone())
+        .collect();
+
+    if let Some(found) = select_matching_bench(requested, &local_benches) {
+        return Ok(found);
+    }
+
+    let workspace_metadata = get_workspace_metadata_from(cargo_toml)?;
+    if let Some(found) = select_matching_bench(requested, &workspace_metadata.benches) {
+        return Ok(found);
+    }
+
+    Ok(requested.to_string())
+}
+
+fn select_matching_bench(requested: &str, benches: &[String]) -> Option<String> {
+    if benches.is_empty() {
+        return None;
+    }
+
+    if let Some(exact) = benches.iter().find(|name| name.as_str() == requested) {
+        return Some(exact.clone());
+    }
+
+    let requested_signature = bench_name_signature(requested);
+    benches
+        .iter()
+        .find(|candidate| bench_name_signature(candidate) == requested_signature)
+        .cloned()
+}
+
+fn bench_name_signature(name: &str) -> String {
+    let stripped = name
+        .strip_suffix("_bench")
+        .or_else(|| name.strip_suffix("-bench"))
+        .unwrap_or(name);
+    stripped.replace('-', "_")
 }
 
 /// Determines which binary to run based on the Cargo.toml configuration.
@@ -240,6 +299,7 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
         WorkspaceMetadata {
             binaries: Vec::new(),
             examples: Vec::new(),
+            benches: Vec::new(),
         }
     });
 
@@ -459,5 +519,50 @@ version = "0.1.0"
         } else {
             panic!("Expected NoBinaryFound, got: {:?}", result);
         }
+    }
+
+    #[test]
+    fn test_resolve_bench_target_allows_suffixless_names() {
+        let temp_dir = TempDir::new().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+        let content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[[bench]]
+name = "gather_rows_bench"
+path = "benches/gather_rows.rs"
+"#;
+        fs::write(&cargo_toml_path, content).unwrap();
+
+        let resolved = resolve_bench_target_name(&cargo_toml_path, "gather_rows").unwrap();
+        assert_eq!(resolved, "gather_rows_bench");
+    }
+
+    #[test]
+    fn test_resolve_bench_target_prefers_exact_match() {
+        let temp_dir = TempDir::new().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+        let content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[[bench]]
+name = "scan"
+path = "benches/scan.rs"
+
+[[bench]]
+name = "scan_bench"
+path = "benches/scan_bench.rs"
+"#;
+        fs::write(&cargo_toml_path, content).unwrap();
+
+        let resolved_exact = resolve_bench_target_name(&cargo_toml_path, "scan").unwrap();
+        assert_eq!(resolved_exact, "scan");
+
+        let resolved_suffix = resolve_bench_target_name(&cargo_toml_path, "scan_bench").unwrap();
+        assert_eq!(resolved_suffix, "scan_bench");
     }
 }

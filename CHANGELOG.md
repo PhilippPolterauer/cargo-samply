@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support for profiling benchmark targets via the new `--bench` flag, including automatic discovery of Criterion and custom harness binaries
+- Support for profiling benchmark targets via the new `--bench` flag, including automatic discovery of Criterion/custom harness binaries and shorthand names without the trailing `_bench`/`-bench` suffix
 
 ### Changed
 

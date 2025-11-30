@@ -47,6 +47,10 @@
 //! cargo samply --bench throughput -- --sample-size 10
 //! ```
 //!
+//! Bench targets can be referenced with or without the trailing `_bench`
+//! or `-bench` suffix. For example, `cargo samply --bench gather_rows` will
+//! automatically pick the `gather_rows_bench` target.
+//!
 //! ### Advanced Options
 //!
 //! Use a different profile:

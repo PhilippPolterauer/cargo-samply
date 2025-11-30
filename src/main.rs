@@ -17,7 +17,9 @@ use std::vec;
 
 use clap::Parser;
 
-use crate::util::{ensure_samply_profile, guess_bin, locate_project, CommandExt};
+use crate::util::{
+    ensure_samply_profile, guess_bin, locate_project, resolve_bench_target_name, CommandExt,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TargetKind {
@@ -133,7 +135,8 @@ fn determine_target(
         return Ok(Target::new(TargetKind::Example, example.clone()));
     }
     if let Some(bench) = &cli.bench {
-        return Ok(Target::new(TargetKind::Bench, bench.clone()));
+        let resolved = resolve_bench_target_name(cargo_toml, bench)?;
+        return Ok(Target::new(TargetKind::Bench, resolved));
     }
 
     Ok(Target::new(TargetKind::Bin, guess_bin(cargo_toml)?))

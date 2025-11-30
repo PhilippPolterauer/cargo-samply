@@ -1,0 +1,5 @@
+```console
+$ cargo-samply samply --no-samply --bench column_sum -- foo bar
+column_sum_bench result=6 args=foo bar
+
+```

@@ -102,6 +102,10 @@ cargo samply -- arg1 arg2 --flag value
 cargo samply --bench throughput -- --sample-size 50
 ```
 
+You can reference benchmarks by either their full Cargo target name or the
+shorthand without a trailing `_bench`/`-bench` suffix. For example, if Cargo
+shows `column_sum_bench`, you can invoke it with `--bench column_sum`.
+
 ## Development
 
 This project includes a `justfile` for common development tasks. Install [just](https://github.com/casey/just) and use:
