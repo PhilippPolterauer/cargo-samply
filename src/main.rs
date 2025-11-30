@@ -10,12 +10,43 @@ mod cli;
 mod error;
 mod util;
 
+use std::fs;
 use std::process::Command;
+use std::time::SystemTime;
 use std::vec;
 
 use clap::Parser;
 
 use crate::util::{ensure_samply_profile, guess_bin, locate_project, CommandExt};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TargetKind {
+    Bin,
+    Example,
+    Bench,
+}
+
+impl TargetKind {
+    fn cargo_flag(self) -> &'static str {
+        match self {
+            TargetKind::Bin => "--bin",
+            TargetKind::Example => "--example",
+            TargetKind::Bench => "--bench",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Target {
+    kind: TargetKind,
+    name: String,
+}
+
+impl Target {
+    fn new(kind: TargetKind, name: String) -> Self {
+        Self { kind, name }
+    }
+}
 
 /// Constructs the path to the built binary based on profile and binary type.
 ///
@@ -60,6 +91,118 @@ fn get_bin_path(
     #[cfg(not(windows))]
     {
         path
+    }
+}
+
+fn resolve_target_path(
+    root: &std::path::Path,
+    profile: &str,
+    target: &Target,
+) -> error::Result<std::path::PathBuf> {
+    match target.kind {
+        TargetKind::Bin => Ok(get_bin_path(
+            root,
+            profile,
+            TargetKind::Bin.cargo_flag(),
+            &target.name,
+        )),
+        TargetKind::Example => Ok(get_bin_path(
+            root,
+            profile,
+            TargetKind::Example.cargo_flag(),
+            &target.name,
+        )),
+        TargetKind::Bench => get_bench_path(root, profile, &target.name),
+    }
+}
+
+fn determine_target(
+    cli: &crate::cli::Config,
+    cargo_toml: &std::path::Path,
+) -> error::Result<Target> {
+    let specified =
+        cli.bin.is_some() as u8 + cli.example.is_some() as u8 + cli.bench.is_some() as u8;
+    if specified > 1 {
+        return Err(error::Error::BinAndExampleMutuallyExclusive);
+    }
+
+    if let Some(bin) = &cli.bin {
+        return Ok(Target::new(TargetKind::Bin, bin.clone()));
+    }
+    if let Some(example) = &cli.example {
+        return Ok(Target::new(TargetKind::Example, example.clone()));
+    }
+    if let Some(bench) = &cli.bench {
+        return Ok(Target::new(TargetKind::Bench, bench.clone()));
+    }
+
+    Ok(Target::new(TargetKind::Bin, guess_bin(cargo_toml)?))
+}
+
+fn get_bench_path(
+    root: &std::path::Path,
+    profile: &str,
+    bench_name: &str,
+) -> error::Result<std::path::PathBuf> {
+    let deps_dir = root.join("target").join(profile).join("deps");
+    if !deps_dir.exists() {
+        return Err(error::Error::BinaryNotFound {
+            path: deps_dir.join(bench_name),
+        });
+    }
+
+    let mut prefixes = vec![format!("{bench_name}-")];
+    let sanitized = bench_name.replace('-', "_");
+    if sanitized != bench_name {
+        prefixes.push(format!("{sanitized}-"));
+    }
+    let mut newest: Option<(SystemTime, std::path::PathBuf)> = None;
+
+    for entry in fs::read_dir(&deps_dir)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let path = entry.path();
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !prefixes.iter().any(|prefix| file_name.starts_with(prefix)) {
+            continue;
+        }
+        if !is_executable_artifact(&path) {
+            continue;
+        }
+        let modified = entry
+            .metadata()?
+            .modified()
+            .unwrap_or(SystemTime::UNIX_EPOCH);
+
+        match &mut newest {
+            Some((ts, best_path)) if modified > *ts => {
+                *ts = modified;
+                *best_path = path;
+            }
+            None => newest = Some((modified, path)),
+            _ => {}
+        }
+    }
+
+    newest
+        .map(|(_, path)| path)
+        .ok_or_else(|| error::Error::BinaryNotFound {
+            path: deps_dir.join(format!("{bench_name}-*")),
+        })
+}
+
+fn is_executable_artifact(path: &std::path::Path) -> bool {
+    if cfg!(windows) {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("exe"))
+            .unwrap_or(false)
+    } else {
+        path.extension().is_none()
     }
 }
 
@@ -118,10 +261,6 @@ fn run() -> error::Result<()> {
     };
     ocli::init(log_level)?;
 
-    if cli.bin.is_some() && cli.example.is_some() {
-        return Err(error::Error::BinAndExampleMutuallyExclusive);
-    }
-
     // check if cargo.toml exists
     // check project path using locate-project
     let cargo_toml = locate_project()?;
@@ -134,13 +273,7 @@ fn run() -> error::Result<()> {
         ensure_samply_profile(&cargo_toml)?;
     }
 
-    let (bin_opt, bin_name) = if let Some(bin) = cli.bin {
-        ("--bin", bin)
-    } else if let Some(example) = cli.example {
-        ("--example", example)
-    } else {
-        ("--bin", guess_bin(&cargo_toml)?)
-    };
+    let target = determine_target(&cli, &cargo_toml)?;
 
     let features_str = if !cli.features.is_empty() {
         Some(cli.features.join(","))
@@ -148,7 +281,13 @@ fn run() -> error::Result<()> {
         None
     };
 
-    let mut args = vec!["build", "--profile", &cli.profile, &bin_opt, &bin_name];
+    let mut args = vec![
+        "build",
+        "--profile",
+        &cli.profile,
+        target.kind.cargo_flag(),
+        &target.name,
+    ];
     if let Some(ref features) = features_str {
         args.push("--features");
         args.push(features);
@@ -164,7 +303,7 @@ fn run() -> error::Result<()> {
     // run samply on the binary
     // if it fails print error
     let root = cargo_toml.parent().unwrap();
-    let bin_path = get_bin_path(root, &cli.profile, bin_opt, &bin_name);
+    let bin_path = resolve_target_path(root, &cli.profile, &target)?;
 
     if !bin_path.exists() {
         return Err(error::Error::BinaryNotFound { path: bin_path });
@@ -202,6 +341,7 @@ mod tests {
             profile: "samply".to_string(),
             bin: Some("test".to_string()),
             example: None,
+            bench: None,
             features: vec!["feature1".to_string(), "feature2".to_string()],
             no_default_features: false,
             verbose: false,
@@ -226,6 +366,7 @@ mod tests {
             profile: "samply".to_string(),
             bin: Some("test".to_string()),
             example: None,
+            bench: None,
             features: vec!["feature1".to_string()],
             no_default_features: false,
             verbose: false,
@@ -250,6 +391,7 @@ mod tests {
             profile: "samply".to_string(),
             bin: Some("test".to_string()),
             example: None,
+            bench: None,
             features: vec![],
             no_default_features: false,
             verbose: false,

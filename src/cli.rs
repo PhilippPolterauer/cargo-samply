@@ -54,6 +54,7 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
 ///     profile: "samply".to_string(),
 ///     bin: Some("my-binary".to_string()),
 ///     example: None,
+///     bench: None,
 ///     features: vec!["feature1".to_string(), "feature2".to_string()],
 ///     no_default_features: false,
 ///     verbose: false,
@@ -79,6 +80,10 @@ pub struct Config {
     /// Example to run
     #[arg(short, long)]
     pub example: Option<String>,
+
+    /// Benchmark target to run (e.g. `cargo samply --bench throughput`)
+    #[arg(long)]
+    pub bench: Option<String>,
 
     /// Build features to enable
     #[arg(short, long)]

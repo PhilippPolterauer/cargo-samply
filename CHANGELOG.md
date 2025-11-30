@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Date
 
+### Added
+
+- Support for profiling benchmark targets via the new `--bench` flag, including automatic discovery of Criterion and custom harness binaries
+
+### Changed
+
+- Improved error messaging for conflicting target-selection flags to mention benchmark support
+
 ## [0.3.2] - 2025-09-03
 
 ### Fixed

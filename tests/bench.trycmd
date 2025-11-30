@@ -1,0 +1,5 @@
+```console
+$ cargo-samply samply --no-samply --bench throughput -- alpha beta
+criterion bench sum=10 args=alpha beta
+
+```

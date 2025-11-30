@@ -5,7 +5,7 @@
 ![GitHub License](https://img.shields.io/github/license/PhilippPolterauer/cargo-samply?style=flat&link=https%3A%2F%2Fgithub.com%2FPhilippPolterauer%2Fcargo-samply%3Ftab%3DMIT-1-ov-file)
 
 A cargo subcommand to automate the process of running `cargo build` with a certain profile and `samply` afterwards.
-This tool simplifies profiling Rust applications by managing build profiles and coordinating with the `samply` profiler.
+This tool simplifies profiling Rust applications by managing build profiles and coordinating with the `samply` profiler, and it works with binaries, examples, and benchmark targets (Criterion or otherwise).
 
 ## Installation
 
@@ -42,6 +42,7 @@ Options:
   -p, --profile <PROFILE>    Build with the specified profile [default: samply]
   -b, --bin <BIN>            Binary to run
   -e, --example <EXAMPLE>    Example to run
+      --bench <BENCH>        Benchmark target to run
   -f, --features <FEATURES>  Build features to enable
       --no-default-features  Disable default features
   -v, --verbose              Print extra output to help debug problems
@@ -79,6 +80,9 @@ cargo samply --bin my-binary
 # Profile an example
 cargo samply --example my-example
 
+# Profile a benchmark (Criterion or custom)
+cargo samply --bench throughput -- --sample-size 10
+
 # Use a different profile
 cargo samply --profile release
 
@@ -93,6 +97,9 @@ cargo samply --no-samply
 
 # Pass arguments to the binary
 cargo samply -- arg1 arg2 --flag value
+
+# Pass arguments to a benchmark
+cargo samply --bench throughput -- --sample-size 50
 ```
 
 ## Development

@@ -1,3 +1,4 @@
+````plaintext
 ```console
 $ cargo-samply --no-samply
 ? 1
@@ -8,3 +9,12 @@ Available binaries:
   second: cargo samply --bin second
 
 ```
+
+```console
+$ cargo-samply samply --no-samply --bin first --bench demo
+? 1
+error: Target selection flags (--bin, --example, --bench) are mutually exclusive
+
+```
+
+````
