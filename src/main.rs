@@ -340,11 +340,13 @@ fn run() -> error::Result<()> {
         if !samply_available {
             return Err(error::Error::SamplyNotFound);
         }
-        Command::new("samply")
-            .arg("record")
-            .arg(&bin_path)
-            .args(&runtime_args)
-            .call()?;
+        let mut samply_cmd = Command::new("samply");
+        samply_cmd.arg("record").arg(&bin_path);
+        if !runtime_args.is_empty() {
+            samply_cmd.arg("--");
+            samply_cmd.args(&runtime_args);
+        }
+        samply_cmd.call()?;
     } else {
         Command::new(&bin_path).args(&runtime_args).call()?;
     }
