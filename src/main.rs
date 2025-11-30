@@ -341,9 +341,8 @@ fn run() -> error::Result<()> {
             return Err(error::Error::SamplyNotFound);
         }
         let mut samply_cmd = Command::new("samply");
-        samply_cmd.arg("record").arg(&bin_path);
+        samply_cmd.arg("record").arg("--").arg(&bin_path);
         if !runtime_args.is_empty() {
-            samply_cmd.arg("--");
             samply_cmd.args(&runtime_args);
         }
         samply_cmd.call()?;
