@@ -80,7 +80,7 @@ cargo samply --bin my-binary
 # Profile an example
 cargo samply --example my-example
 
-# Profile a benchmark (Criterion or custom)
+# Profile a benchmark (Criterion harness tested)
 cargo samply --bench throughput -- --sample-size 10
 
 # Use a different profile
@@ -107,8 +107,8 @@ runtime invocation with `--bench <name>` (mirroring `cargo bench`). This is
 required for standard harness benches and the typical Criterion setup. If you
 opt out of the harness with `harness = false`, the extra flag is skipped.
 
-This behavior has been validated with Criterion-driven benches; other bespoke
-bench runners may require manual adjustments.
+This behavior has been validated with Criterion-driven benches only; other
+bench runners have not been tested and may require manual adjustments.
 
 
 You can reference benchmarks by either their full Cargo target name or the

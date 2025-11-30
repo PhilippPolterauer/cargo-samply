@@ -9,7 +9,7 @@
 //! - Automatically building your project with debug symbols
 //! - Managing the `samply` profiling profile in `Cargo.toml`
 //! - Running `samply` with the correct binary path
-//! - Supporting binaries, examples, and benches (Criterion or otherwise)
+//! - Supporting binaries, examples, and benches (Criterion harness tested)
 //! - Providing flexible feature and profile selection
 //!
 //! ## Installation
@@ -51,13 +51,13 @@
 //! or `-bench` suffix. For example, `cargo samply --bench gather_rows` will
 //! automatically pick the `gather_rows_bench` target.
 //!
-//! When a target keeps the default test harness (the usual case, including
-//! Criterion benches unless `harness = false` is set), cargo-samply will run
+//! When a target keeps the default test harness (the usual case—Criterion has
+//! been explicitly tested unless `harness = false` is set), cargo-samply will run
 //! the final binary with `--bench <target>` so it behaves exactly like
 //! `cargo bench`.
 //!
-//! The current bench flow has been validated with Criterion-driven harnesses.
-//! Other bespoke runners may need manual adjustments.
+//! The current bench flow has only been validated with Criterion-driven
+//! harnesses. Other bespoke runners are untested and may need adjustments.
 //!
 //! ### Advanced Options
 //!

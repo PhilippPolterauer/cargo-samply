@@ -233,7 +233,7 @@ fn configure_samply_command(
 ) {
     cmd.arg("record").arg(bin_path);
     if !runtime_args.is_empty() {
-        cmd.arg("--").args(runtime_args);
+        cmd.args(runtime_args);
     }
 }
 
@@ -255,7 +255,7 @@ fn main() {
 /// 3. Validate arguments
 /// 4. Locate the cargo project
 /// 5. Ensure the samply profile exists
-/// 6. Determine which binary to run
+/// 6. Determine which binary to run (bench flow tested only with Criterion harnesses)
 /// 7. Build the project
 /// 8. Run samply or the binary directly
 ///
@@ -314,6 +314,9 @@ fn run() -> error::Result<()> {
         None
     };
 
+    // Always rebuild the requested target via `cargo build` so the binary exists
+    // before profiling. Bench flow is only validated with the Criterion harness
+    // (matching what `cargo bench --no-run` would do).
     let mut args = vec![
         "build",
         "--profile",
@@ -336,6 +339,8 @@ fn run() -> error::Result<()> {
     // run samply on the binary
     // if it fails print error
     let root = cargo_toml.parent().unwrap();
+    // Locate the freshly built artifact inside `target/<profile>/...`. Bench
+    // locations (deps dir) have only been tested with Criterion harness output.
     let bin_path = resolve_target_path(root, &cli.profile, &target)?;
 
     if !bin_path.exists() {
@@ -401,7 +406,6 @@ mod tests {
         let expected = vec![
             OsString::from("record"),
             OsString::from("target/bin"),
-            OsString::from("--"),
             OsString::from("--bench"),
             OsString::from("throughput"),
         ];

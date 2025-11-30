@@ -207,10 +207,11 @@ pub fn resolve_bench_target_name(cargo_toml: &Path, requested: &str) -> error::R
 
 /// Returns whether the specified bench target uses Cargo's built-in test harness.
 ///
-/// Harnessed benches (the default, which includes common Criterion setups)
-/// require the `--bench` CLI flag at runtime to execute benchmark functions
-/// instead of unit tests. Custom harnesses that explicitly set `harness = false`
-/// own their entry point and typically ignore that flag.
+/// Harnessed benches (the default—and the only path validated here via
+/// Criterion setups) require the `--bench` CLI flag at runtime to execute
+/// benchmark functions instead of unit tests. Custom harnesses that
+/// explicitly set `harness = false` own their entry point and typically
+/// ignore that flag.
 pub fn bench_uses_harness(cargo_toml: &Path, bench_name: &str) -> error::Result<bool> {
     let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
     let uses_harness = manifest
