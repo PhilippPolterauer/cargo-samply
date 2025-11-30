@@ -231,7 +231,7 @@ fn configure_samply_command(
     bin_path: &std::path::Path,
     runtime_args: &[String],
 ) {
-    cmd.arg("record").arg(bin_path);
+    cmd.arg("record").arg("--").arg(bin_path);
     if !runtime_args.is_empty() {
         cmd.args(runtime_args);
     }
@@ -405,6 +405,7 @@ mod tests {
 
         let expected = vec![
             OsString::from("record"),
+            OsString::from("--"),
             OsString::from("target/bin"),
             OsString::from("--bench"),
             OsString::from("throughput"),
@@ -414,12 +415,12 @@ mod tests {
     }
 
     #[test]
-    fn samply_command_skips_separator_without_runtime_args() {
+    fn samply_command_inserts_separator_even_without_runtime_args() {
         let mut cmd = Command::new("samply");
         configure_samply_command(&mut cmd, Path::new("target/bin"), &[]);
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
-        let expected = vec![OsString::from("record"), OsString::from("target/bin")];
+        let expected = vec![OsString::from("record"), OsString::from("--"), OsString::from("target/bin")];
 
         assert_eq!(args, expected);
     }
