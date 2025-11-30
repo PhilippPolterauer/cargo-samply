@@ -205,6 +205,23 @@ pub fn resolve_bench_target_name(cargo_toml: &Path, requested: &str) -> error::R
     Ok(requested.to_string())
 }
 
+/// Returns whether the specified bench target uses Cargo's built-in test harness.
+///
+/// Harnessed benches (the default, which includes common Criterion setups)
+/// require the `--bench` CLI flag at runtime to execute benchmark functions
+/// instead of unit tests. Custom harnesses that explicitly set `harness = false`
+/// own their entry point and typically ignore that flag.
+pub fn bench_uses_harness(cargo_toml: &Path, bench_name: &str) -> error::Result<bool> {
+    let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
+    let uses_harness = manifest
+        .bench
+        .iter()
+        .find(|bench| bench.name.as_deref() == Some(bench_name))
+        .map(|bench| bench.harness)
+        .unwrap_or(true);
+    Ok(uses_harness)
+}
+
 fn select_matching_bench(requested: &str, benches: &[String]) -> Option<String> {
     if benches.is_empty() {
         return None;
@@ -564,5 +581,44 @@ path = "benches/scan_bench.rs"
 
         let resolved_suffix = resolve_bench_target_name(&cargo_toml_path, "scan_bench").unwrap();
         assert_eq!(resolved_suffix, "scan_bench");
+    }
+
+    #[test]
+    fn test_bench_uses_harness_defaults_true() {
+        let temp_dir = TempDir::new().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+        let content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[[bench]]
+name = "alpha"
+path = "benches/alpha.rs"
+"#;
+        fs::write(&cargo_toml_path, content).unwrap();
+
+        let uses_harness = bench_uses_harness(&cargo_toml_path, "alpha").unwrap();
+        assert!(uses_harness);
+    }
+
+    #[test]
+    fn test_bench_uses_harness_detects_false() {
+        let temp_dir = TempDir::new().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+        let content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[[bench]]
+name = "beta"
+path = "benches/beta.rs"
+harness = false
+"#;
+        fs::write(&cargo_toml_path, content).unwrap();
+
+        let uses_harness = bench_uses_harness(&cargo_toml_path, "beta").unwrap();
+        assert!(!uses_harness);
     }
 }

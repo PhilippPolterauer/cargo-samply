@@ -51,6 +51,14 @@
 //! or `-bench` suffix. For example, `cargo samply --bench gather_rows` will
 //! automatically pick the `gather_rows_bench` target.
 //!
+//! When a target keeps the default test harness (the usual case, including
+//! Criterion benches unless `harness = false` is set), cargo-samply will run
+//! the final binary with `--bench <target>` so it behaves exactly like
+//! `cargo bench`.
+//!
+//! The current bench flow has been validated with Criterion-driven harnesses.
+//! Other bespoke runners may need manual adjustments.
+//!
 //! ### Advanced Options
 //!
 //! Use a different profile:

@@ -11,6 +11,7 @@ mod error;
 mod util;
 
 use std::fs;
+use std::mem;
 use std::process::Command;
 use std::time::SystemTime;
 use std::vec;
@@ -18,7 +19,8 @@ use std::vec;
 use clap::Parser;
 
 use crate::util::{
-    ensure_samply_profile, guess_bin, locate_project, resolve_bench_target_name, CommandExt,
+    bench_uses_harness, ensure_samply_profile, guess_bin, locate_project,
+    resolve_bench_target_name, CommandExt,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -209,6 +211,20 @@ fn is_executable_artifact(path: &std::path::Path) -> bool {
     }
 }
 
+fn prepare_runtime_args(
+    target: &Target,
+    bench_requires_flag: bool,
+    trailing_args: Vec<String>,
+) -> Vec<String> {
+    let mut args = Vec::new();
+    if bench_requires_flag {
+        args.push("--bench".to_string());
+        args.push(target.name.clone());
+    }
+    args.extend(trailing_args);
+    args
+}
+
 /// Entry point for the cargo-samply application.
 ///
 /// Initializes error handling and calls the main run function.
@@ -254,7 +270,7 @@ fn run() -> error::Result<()> {
             .unwrap()
     };
 
-    let crate::cli::CargoCli::Samply(cli) = cli;
+    let crate::cli::CargoCli::Samply(mut cli) = cli;
     let log_level = if cli.quiet {
         log::Level::Error
     } else if cli.verbose {
@@ -277,6 +293,8 @@ fn run() -> error::Result<()> {
     }
 
     let target = determine_target(&cli, &cargo_toml)?;
+    let bench_requires_flag =
+        matches!(target.kind, TargetKind::Bench) && bench_uses_harness(&cargo_toml, &target.name)?;
 
     let features_str = if !cli.features.is_empty() {
         Some(cli.features.join(","))
@@ -312,6 +330,8 @@ fn run() -> error::Result<()> {
         return Err(error::Error::BinaryNotFound { path: bin_path });
     }
 
+    let runtime_args = prepare_runtime_args(&target, bench_requires_flag, mem::take(&mut cli.args));
+
     if !cli.no_samply {
         let samply_available = std::process::Command::new("samply")
             .arg("--help")
@@ -322,11 +342,11 @@ fn run() -> error::Result<()> {
         }
         Command::new("samply")
             .arg("record")
-            .arg(bin_path)
-            .args(cli.args)
+            .arg(&bin_path)
+            .args(&runtime_args)
             .call()?;
     } else {
-        Command::new(bin_path).args(cli.args).call()?;
+        Command::new(&bin_path).args(&runtime_args).call()?;
     }
 
     Ok(())
@@ -433,5 +453,26 @@ mod tests {
             std::path::Path::new("/project/target/debug/examples/myexample")
         };
         assert_eq!(path, expected);
+    }
+
+    #[test]
+    fn test_prepare_runtime_args_injects_bench_flag() {
+        let target = Target::new(TargetKind::Bench, "speed".to_string());
+        let args = prepare_runtime_args(&target, true, vec!["--foo".to_string()]);
+        assert_eq!(
+            args,
+            vec![
+                "--bench".to_string(),
+                "speed".to_string(),
+                "--foo".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn test_prepare_runtime_args_passthrough_for_non_bench() {
+        let target = Target::new(TargetKind::Bin, "demo".to_string());
+        let args = prepare_runtime_args(&target, false, vec!["--foo".to_string()]);
+        assert_eq!(args, vec!["--foo".to_string()]);
     }
 }
