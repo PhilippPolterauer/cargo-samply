@@ -103,7 +103,7 @@ cargo samply --bench throughput -- --sample-size 50
 ```
 
 When you use `--bench <name>`, cargo-samply automatically prefixes the
-runtime invocation with `--bench <name>` (mirroring `cargo bench`). This is
+runtime invocation with `--bench` (mirroring `cargo bench`). This is
 required for standard harness benches and the typical Criterion setup.
 
 This behavior has been validated with Criterion-driven benches only; other

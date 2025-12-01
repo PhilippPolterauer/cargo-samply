@@ -1,14 +1,14 @@
 ```console
 $ cargo-samply samply --no-samply --bench throughput -- alpha beta
-criterion bench sum=10 args=--bench throughput alpha beta
+criterion bench sum=10 args=--bench alpha beta
 
 ```
 
 ```console
 $ cargo-samply samply --bench throughput -- alpha beta
-fake-samply raw args=["record", "--", "[CWD]/target/samply/deps/throughput-[..]", "--bench", "throughput", "alpha", "beta"]
+fake-samply raw args=["record", "--", "[CWD]/target/samply/deps/throughput-[..]", "--bench", "alpha", "beta"]
 fake-samply prefix=["record"]
-fake-samply runtime=["[CWD]/target/samply/deps/throughput-[..]", "--bench", "throughput", "alpha", "beta"]
-criterion bench sum=10 args=--bench throughput alpha beta
+fake-samply runtime=["[CWD]/target/samply/deps/throughput-[..]", "--bench", "alpha", "beta"]
+criterion bench sum=10 args=--bench alpha beta
 
 ```

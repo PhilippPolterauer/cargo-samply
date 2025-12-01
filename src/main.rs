@@ -213,15 +213,12 @@ fn is_executable_artifact(path: &std::path::Path) -> bool {
     }
 }
 
-fn prepare_runtime_args(
-    target: &Target,
-    bench_requires_flag: bool,
-    trailing_args: Vec<String>,
-) -> Vec<String> {
+fn prepare_runtime_args(bench_requires_flag: bool, trailing_args: Vec<String>) -> Vec<String> {
     let mut args = Vec::new();
     if bench_requires_flag {
+        // `cargo bench` only injects the `--bench` flag without repeating the
+        // target name; mirror that so Criterion harnesses keep their defaults.
         args.push("--bench".to_string());
-        args.push(target.name.clone());
     }
     args.extend(trailing_args);
     args
@@ -347,7 +344,7 @@ fn run() -> error::Result<()> {
         return Err(error::Error::BinaryNotFound { path: bin_path });
     }
 
-    let runtime_args = prepare_runtime_args(&target, bench_requires_flag, mem::take(&mut cli.args));
+    let runtime_args = prepare_runtime_args(bench_requires_flag, mem::take(&mut cli.args));
 
     if !cli.no_samply {
         let samply_program =
@@ -507,22 +504,13 @@ mod tests {
 
     #[test]
     fn test_prepare_runtime_args_injects_bench_flag() {
-        let target = Target::new(TargetKind::Bench, "speed".to_string());
-        let args = prepare_runtime_args(&target, true, vec!["--foo".to_string()]);
-        assert_eq!(
-            args,
-            vec![
-                "--bench".to_string(),
-                "speed".to_string(),
-                "--foo".to_string()
-            ]
-        );
+        let args = prepare_runtime_args(true, vec!["--foo".to_string()]);
+        assert_eq!(args, vec!["--bench".to_string(), "--foo".to_string()]);
     }
 
     #[test]
     fn test_prepare_runtime_args_passthrough_for_non_bench() {
-        let target = Target::new(TargetKind::Bin, "demo".to_string());
-        let args = prepare_runtime_args(&target, false, vec!["--foo".to_string()]);
+        let args = prepare_runtime_args(false, vec!["--foo".to_string()]);
         assert_eq!(args, vec!["--foo".to_string()]);
     }
 }

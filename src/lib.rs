@@ -51,7 +51,7 @@
 //! suffix rewriting or aliasing occurs.
 //!
 //! When you run with `--bench <target>`, cargo-samply will always execute the
-//! final binary with `--bench <target>` so it behaves exactly like
+//! final binary with `--bench` so it behaves exactly like
 //! `cargo bench`.
 //!
 //! The current bench flow has only been validated with Criterion-driven setups.

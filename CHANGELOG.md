@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support for profiling benchmark targets via the new `--bench` flag (validated with Criterion harnesses), including automatic discovery of Criterion/custom harness binaries
 - Test-only `fake-samply` shim plus integration coverage to ensure `samply record -- <command>` invocations stay correct
-- Automatically forward `--bench <name>` to benchmark executables (matching `cargo bench`)
+- Automatically forward the `--bench` flag to benchmark executables (matching `cargo bench`)
 
 ### Changed
 
