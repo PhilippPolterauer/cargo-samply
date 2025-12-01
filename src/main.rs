@@ -20,9 +20,10 @@ use std::vec;
 use clap::Parser;
 
 use crate::util::{
-    bench_uses_harness, ensure_samply_profile, guess_bin, locate_project,
-    resolve_bench_target_name, CommandExt,
+    ensure_samply_profile, guess_bin, locate_project, resolve_bench_target_name, CommandExt,
 };
+
+const SAMPLY_OVERRIDE_ENV: &str = "CARGO_SAMPLY_SAMPLY_PATH";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TargetKind {
@@ -305,8 +306,7 @@ fn run() -> error::Result<()> {
     }
 
     let target = determine_target(&cli, &cargo_toml)?;
-    let bench_requires_flag =
-        matches!(target.kind, TargetKind::Bench) && bench_uses_harness(&cargo_toml, &target.name)?;
+    let bench_requires_flag = matches!(target.kind, TargetKind::Bench);
 
     let features_str = if !cli.features.is_empty() {
         Some(cli.features.join(","))
@@ -350,7 +350,9 @@ fn run() -> error::Result<()> {
     let runtime_args = prepare_runtime_args(&target, bench_requires_flag, mem::take(&mut cli.args));
 
     if !cli.no_samply {
-        let mut samply_cmd = Command::new("samply");
+        let samply_program =
+            std::env::var(SAMPLY_OVERRIDE_ENV).unwrap_or_else(|_| "samply".to_string());
+        let mut samply_cmd = Command::new(&samply_program);
         configure_samply_command(&mut samply_cmd, &bin_path, &runtime_args);
         match samply_cmd.call() {
             Ok(_) => {}
@@ -420,7 +422,11 @@ mod tests {
         configure_samply_command(&mut cmd, Path::new("target/bin"), &[]);
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
-        let expected = vec![OsString::from("record"), OsString::from("--"), OsString::from("target/bin")];
+        let expected = vec![
+            OsString::from("record"),
+            OsString::from("--"),
+            OsString::from("target/bin"),
+        ];
 
         assert_eq!(args, expected);
     }

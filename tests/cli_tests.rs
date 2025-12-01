@@ -7,7 +7,14 @@ fn trycmd() {
         .unwrap()
         .collect::<Vec<_>>();
     let test = trycmd::TestCases::new();
-    let mut t = test.env("TERM", "dumb").env("CARGO_TERM_QUIET", "true");
+    let fake_samply = trycmd::cargo::cargo_bin("fake-samply");
+    let mut t = test
+        .env("TERM", "dumb")
+        .env("CARGO_TERM_QUIET", "true")
+        .env(
+            "CARGO_SAMPLY_SAMPLY_PATH",
+            fake_samply.to_string_lossy().into_owned(),
+        );
 
     // Load trycmd cases. On Windows we avoid loading cases known to be
     // problematic by not including the `tests/skip-on-windows` folder.

@@ -104,16 +104,14 @@ cargo samply --bench throughput -- --sample-size 50
 
 When you use `--bench <name>`, cargo-samply automatically prefixes the
 runtime invocation with `--bench <name>` (mirroring `cargo bench`). This is
-required for standard harness benches and the typical Criterion setup. If you
-opt out of the harness with `harness = false`, the extra flag is skipped.
+required for standard harness benches and the typical Criterion setup.
 
 This behavior has been validated with Criterion-driven benches only; other
 bench runners have not been tested and may require manual adjustments.
 
 
-You can reference benchmarks by either their full Cargo target name or the
-shorthand without a trailing `_bench`/`-bench` suffix. For example, if Cargo
-shows `column_sum_bench`, you can invoke it with `--bench column_sum`.
+Benchmark targets must be referenced by their exact Cargo target name—no
+suffix rewriting or aliasing is performed.
 
 ## Development
 

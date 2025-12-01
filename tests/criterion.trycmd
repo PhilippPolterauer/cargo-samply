@@ -1,5 +1,5 @@
 ```console
 $ cargo-samply samply --no-samply --bench criterion_capture -- --confidence-level 0.90
-criterion fixture args=--confidence-level 0.90
+criterion fixture args=--bench criterion_capture --confidence-level 0.90
 
 ```

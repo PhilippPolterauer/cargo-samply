@@ -47,17 +47,15 @@
 //! cargo samply --bench throughput -- --sample-size 10
 //! ```
 //!
-//! Bench targets can be referenced with or without the trailing `_bench`
-//! or `-bench` suffix. For example, `cargo samply --bench gather_rows` will
-//! automatically pick the `gather_rows_bench` target.
+//! Bench targets must be referenced using their exact Cargo target names—no
+//! suffix rewriting or aliasing occurs.
 //!
-//! When a target keeps the default test harness (the usual case—Criterion has
-//! been explicitly tested unless `harness = false` is set), cargo-samply will run
-//! the final binary with `--bench <target>` so it behaves exactly like
+//! When you run with `--bench <target>`, cargo-samply will always execute the
+//! final binary with `--bench <target>` so it behaves exactly like
 //! `cargo bench`.
 //!
-//! The current bench flow has only been validated with Criterion-driven
-//! harnesses. Other bespoke runners are untested and may need adjustments.
+//! The current bench flow has only been validated with Criterion-driven setups.
+//! Other bespoke runners are untested and may need adjustments.
 //!
 //! ### Advanced Options
 //!

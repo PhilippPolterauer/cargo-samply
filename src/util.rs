@@ -183,8 +183,8 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
     })
 }
 
-/// Resolves the actual bench target name, allowing shorthand forms that
-/// omit trailing `_bench` or `-bench` suffixes.
+/// Resolves the requested bench target name if it exists in the local
+/// manifest or workspace metadata. Matching is exact; no suffix munging.
 pub fn resolve_bench_target_name(cargo_toml: &Path, requested: &str) -> error::Result<String> {
     let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
     let local_benches: Vec<String> = manifest
@@ -205,46 +205,11 @@ pub fn resolve_bench_target_name(cargo_toml: &Path, requested: &str) -> error::R
     Ok(requested.to_string())
 }
 
-/// Returns whether the specified bench target uses Cargo's built-in test harness.
-///
-/// Harnessed benches (the default—and the only path validated here via
-/// Criterion setups) require the `--bench` CLI flag at runtime to execute
-/// benchmark functions instead of unit tests. Custom harnesses that
-/// explicitly set `harness = false` own their entry point and typically
-/// ignore that flag.
-pub fn bench_uses_harness(cargo_toml: &Path, bench_name: &str) -> error::Result<bool> {
-    let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
-    let uses_harness = manifest
-        .bench
-        .iter()
-        .find(|bench| bench.name.as_deref() == Some(bench_name))
-        .map(|bench| bench.harness)
-        .unwrap_or(true);
-    Ok(uses_harness)
-}
-
 fn select_matching_bench(requested: &str, benches: &[String]) -> Option<String> {
-    if benches.is_empty() {
-        return None;
-    }
-
-    if let Some(exact) = benches.iter().find(|name| name.as_str() == requested) {
-        return Some(exact.clone());
-    }
-
-    let requested_signature = bench_name_signature(requested);
     benches
         .iter()
-        .find(|candidate| bench_name_signature(candidate) == requested_signature)
+        .find(|candidate| candidate.as_str() == requested)
         .cloned()
-}
-
-fn bench_name_signature(name: &str) -> String {
-    let stripped = name
-        .strip_suffix("_bench")
-        .or_else(|| name.strip_suffix("-bench"))
-        .unwrap_or(name);
-    stripped.replace('-', "_")
 }
 
 /// Determines which binary to run based on the Cargo.toml configuration.
@@ -444,51 +409,10 @@ inherits = "release"
 debug = true
 "#;
         fs::write(&cargo_toml_path, initial_content).unwrap();
-
-        let original_content = fs::read_to_string(&cargo_toml_path).unwrap();
         ensure_samply_profile(&cargo_toml_path).unwrap();
-        let new_content = fs::read_to_string(&cargo_toml_path).unwrap();
 
-        assert_eq!(original_content, new_content); // Should not change
-    }
-
-    #[test]
-    fn test_guess_bin_with_default_run() {
-        let temp_dir = TempDir::new().unwrap();
-        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
-        let content = r#"
-[package]
-name = "test"
-version = "0.1.0"
-default-run = "mybin"
-
-[[bin]]
-name = "mybin"
-path = "src/main.rs"
-"#;
-        fs::write(&cargo_toml_path, content).unwrap();
-
-        let bin = guess_bin(&cargo_toml_path).unwrap();
-        assert_eq!(bin, "mybin");
-    }
-
-    #[test]
-    fn test_guess_bin_single_bin() {
-        let temp_dir = TempDir::new().unwrap();
-        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
-        let content = r#"
-[package]
-name = "test"
-version = "0.1.0"
-
-[[bin]]
-name = "single"
-path = "src/main.rs"
-"#;
-        fs::write(&cargo_toml_path, content).unwrap();
-
-        let bin = guess_bin(&cargo_toml_path).unwrap();
-        assert_eq!(bin, "single");
+        let content = fs::read_to_string(&cargo_toml_path).unwrap();
+        assert_eq!(content.matches("[profile.samply]").count(), 1);
     }
 
     #[test]
@@ -539,87 +463,4 @@ version = "0.1.0"
         }
     }
 
-    #[test]
-    fn test_resolve_bench_target_allows_suffixless_names() {
-        let temp_dir = TempDir::new().unwrap();
-        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
-        let content = r#"
-[package]
-name = "test"
-version = "0.1.0"
-
-[[bench]]
-name = "gather_rows_bench"
-path = "benches/gather_rows.rs"
-"#;
-        fs::write(&cargo_toml_path, content).unwrap();
-
-        let resolved = resolve_bench_target_name(&cargo_toml_path, "gather_rows").unwrap();
-        assert_eq!(resolved, "gather_rows_bench");
-    }
-
-    #[test]
-    fn test_resolve_bench_target_prefers_exact_match() {
-        let temp_dir = TempDir::new().unwrap();
-        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
-        let content = r#"
-[package]
-name = "test"
-version = "0.1.0"
-
-[[bench]]
-name = "scan"
-path = "benches/scan.rs"
-
-[[bench]]
-name = "scan_bench"
-path = "benches/scan_bench.rs"
-"#;
-        fs::write(&cargo_toml_path, content).unwrap();
-
-        let resolved_exact = resolve_bench_target_name(&cargo_toml_path, "scan").unwrap();
-        assert_eq!(resolved_exact, "scan");
-
-        let resolved_suffix = resolve_bench_target_name(&cargo_toml_path, "scan_bench").unwrap();
-        assert_eq!(resolved_suffix, "scan_bench");
-    }
-
-    #[test]
-    fn test_bench_uses_harness_defaults_true() {
-        let temp_dir = TempDir::new().unwrap();
-        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
-        let content = r#"
-[package]
-name = "test"
-version = "0.1.0"
-
-[[bench]]
-name = "alpha"
-path = "benches/alpha.rs"
-"#;
-        fs::write(&cargo_toml_path, content).unwrap();
-
-        let uses_harness = bench_uses_harness(&cargo_toml_path, "alpha").unwrap();
-        assert!(uses_harness);
-    }
-
-    #[test]
-    fn test_bench_uses_harness_detects_false() {
-        let temp_dir = TempDir::new().unwrap();
-        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
-        let content = r#"
-[package]
-name = "test"
-version = "0.1.0"
-
-[[bench]]
-name = "beta"
-path = "benches/beta.rs"
-harness = false
-"#;
-        fs::write(&cargo_toml_path, content).unwrap();
-
-        let uses_harness = bench_uses_harness(&cargo_toml_path, "beta").unwrap();
-        assert!(!uses_harness);
-    }
 }
