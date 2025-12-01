@@ -409,10 +409,50 @@ inherits = "release"
 debug = true
 "#;
         fs::write(&cargo_toml_path, initial_content).unwrap();
+        let original_content = fs::read_to_string(&cargo_toml_path).unwrap();
         ensure_samply_profile(&cargo_toml_path).unwrap();
+        let new_content = fs::read_to_string(&cargo_toml_path).unwrap();
 
-        let content = fs::read_to_string(&cargo_toml_path).unwrap();
-        assert_eq!(content.matches("[profile.samply]").count(), 1);
+        assert_eq!(original_content, new_content); // Should not change
+    }
+
+    #[test]
+    fn test_guess_bin_with_default_run() {
+        let temp_dir = TempDir::new().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+        let content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+default-run = "mybin"
+
+[[bin]]
+name = "mybin"
+path = "src/main.rs"
+"#;
+        fs::write(&cargo_toml_path, content).unwrap();
+
+        let bin = guess_bin(&cargo_toml_path).unwrap();
+        assert_eq!(bin, "mybin");
+    }
+
+    #[test]
+    fn test_guess_bin_single_bin() {
+        let temp_dir = TempDir::new().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+        let content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[[bin]]
+name = "single"
+path = "src/main.rs"
+"#;
+        fs::write(&cargo_toml_path, content).unwrap();
+
+        let bin = guess_bin(&cargo_toml_path).unwrap();
+        assert_eq!(bin, "single");
     }
 
     #[test]
