@@ -129,7 +129,7 @@ fn determine_target(
     let specified =
         cli.bin.is_some() as u8 + cli.example.is_some() as u8 + cli.bench.is_some() as u8;
     if specified > 1 {
-        return Err(error::Error::BinAndExampleMutuallyExclusive);
+        return Err(error::Error::MultipleTargetsFlagsSpecified);
     }
 
     if let Some(bin) = &cli.bin {
