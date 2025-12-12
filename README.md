@@ -5,7 +5,7 @@
 ![GitHub License](https://img.shields.io/github/license/PhilippPolterauer/cargo-samply?style=flat&link=https%3A%2F%2Fgithub.com%2FPhilippPolterauer%2Fcargo-samply%3Ftab%3DMIT-1-ov-file)
 
 A cargo subcommand to automate the process of running `cargo build` with a certain profile and `samply` afterwards.
-This tool simplifies profiling Rust applications by managing build profiles and coordinating with the `samply` profiler, and it works with binaries, examples, and benchmark targets (Criterion or otherwise).
+This tool simplifies profiling Rust applications by managing build profiles and coordinating with the `samply` profiler, and it works with binaries, examples, and benchmark targets (Criterion harness validated; others untested).
 
 ## Installation
 
