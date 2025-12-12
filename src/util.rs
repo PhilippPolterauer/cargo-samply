@@ -164,10 +164,10 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
                 if !examples.contains(&target.name) {
                     examples.push(target.name);
                 }
-            } else if target.kind.contains(&cargo_metadata::TargetKind::Bench) {
-                if !benches.contains(&target.name) {
-                    benches.push(target.name);
-                }
+            } else if target.kind.contains(&cargo_metadata::TargetKind::Bench)
+                && !benches.contains(&target.name)
+            {
+                benches.push(target.name);
             }
         }
     }
@@ -502,5 +502,4 @@ version = "0.1.0"
             panic!("Expected NoBinaryFound, got: {:?}", result);
         }
     }
-
 }
