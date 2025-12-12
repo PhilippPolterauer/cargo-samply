@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Date
 
+## [0.3.4] - 2025-12-12
+
 ### Added
 
 - Support for profiling benchmark targets via the new `--bench` flag (validated with Criterion harnesses), including automatic discovery of Criterion/custom harness binaries
