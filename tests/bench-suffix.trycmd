@@ -1,0 +1,14 @@
+```console
+$ cargo-samply samply --no-samply --bench column_sum_bench
+column_sum_bench result=6 args=--bench
+
+```
+
+```console
+$ cargo-samply samply --bench column_sum_bench
+fake-samply raw args=["record", "--", "[CWD]/target/samply/deps/column_sum_bench-[..]", "--bench"]
+fake-samply prefix=["record"]
+fake-samply runtime=["[CWD]/target/samply/deps/column_sum_bench-[..]", "--bench"]
+column_sum_bench result=6 args=--bench
+
+```

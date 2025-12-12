@@ -51,7 +51,7 @@ pub enum Error {
     TomlManifest(#[from] cargo_toml::Error),
     /// Target-selection flags (bin/example/bench) are mutually exclusive
     #[error("Target selection flags (--bin, --example, --bench) are mutually exclusive")]
-    BinAndExampleMutuallyExclusive,
+    MultipleTargetsFlagsSpecified,
     /// Cargo build process failed
     #[error("Build failed")]
     CargoBuildFailed,
