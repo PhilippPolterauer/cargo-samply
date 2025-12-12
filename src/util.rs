@@ -37,6 +37,7 @@ use log::{debug, info};
 pub struct WorkspaceMetadata {
     pub binaries: Vec<String>,
     pub examples: Vec<String>,
+    pub benches: Vec<String>,
 }
 
 /// Locates the cargo project by running `cargo locate-project`.
@@ -151,6 +152,7 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
 
     let mut binaries = Vec::new();
     let mut examples = Vec::new();
+    let mut benches = Vec::new();
 
     for package in metadata.packages {
         for target in package.targets {
@@ -158,16 +160,56 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
                 if !binaries.contains(&target.name) {
                     binaries.push(target.name);
                 }
-            } else if target.is_example() && !examples.contains(&target.name) {
-                examples.push(target.name);
+            } else if target.is_example() {
+                if !examples.contains(&target.name) {
+                    examples.push(target.name);
+                }
+            } else if target.kind.contains(&cargo_metadata::TargetKind::Bench) {
+                if !benches.contains(&target.name) {
+                    benches.push(target.name);
+                }
             }
         }
     }
 
     binaries.sort();
     examples.sort();
+    benches.sort();
 
-    Ok(WorkspaceMetadata { binaries, examples })
+    Ok(WorkspaceMetadata {
+        binaries,
+        examples,
+        benches,
+    })
+}
+
+/// Resolves the requested bench target name if it exists in the local
+/// manifest or workspace metadata. Matching is exact; no suffix munging.
+pub fn resolve_bench_target_name(cargo_toml: &Path, requested: &str) -> error::Result<String> {
+    let manifest = cargo_toml::Manifest::from_path(cargo_toml)?;
+    let local_benches: Vec<String> = manifest
+        .bench
+        .iter()
+        .filter_map(|bench| bench.name.clone())
+        .collect();
+
+    if let Some(found) = select_matching_bench(requested, &local_benches) {
+        return Ok(found);
+    }
+
+    let workspace_metadata = get_workspace_metadata_from(cargo_toml)?;
+    if let Some(found) = select_matching_bench(requested, &workspace_metadata.benches) {
+        return Ok(found);
+    }
+
+    Ok(requested.to_string())
+}
+
+fn select_matching_bench(requested: &str, benches: &[String]) -> Option<String> {
+    benches
+        .iter()
+        .find(|candidate| candidate.as_str() == requested)
+        .cloned()
 }
 
 /// Determines which binary to run based on the Cargo.toml configuration.
@@ -240,6 +282,7 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
         WorkspaceMetadata {
             binaries: Vec::new(),
             examples: Vec::new(),
+            benches: Vec::new(),
         }
     });
 
@@ -366,7 +409,6 @@ inherits = "release"
 debug = true
 "#;
         fs::write(&cargo_toml_path, initial_content).unwrap();
-
         let original_content = fs::read_to_string(&cargo_toml_path).unwrap();
         ensure_samply_profile(&cargo_toml_path).unwrap();
         let new_content = fs::read_to_string(&cargo_toml_path).unwrap();
@@ -460,4 +502,5 @@ version = "0.1.0"
             panic!("Expected NoBinaryFound, got: {:?}", result);
         }
     }
+
 }

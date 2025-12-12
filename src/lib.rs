@@ -9,7 +9,7 @@
 //! - Automatically building your project with debug symbols
 //! - Managing the `samply` profiling profile in `Cargo.toml`
 //! - Running `samply` with the correct binary path
-//! - Supporting both binaries and examples
+//! - Supporting binaries, examples, and benches (Criterion harness tested)
 //! - Providing flexible feature and profile selection
 //!
 //! ## Installation
@@ -41,6 +41,21 @@
 //! ```bash
 //! cargo samply --example my-example
 //! ```
+//!
+//! Profile a benchmark target:
+//! ```bash
+//! cargo samply --bench throughput -- --sample-size 10
+//! ```
+//!
+//! Bench targets must be referenced using their exact Cargo target names—no
+//! suffix rewriting or aliasing occurs.
+//!
+//! When you run with `--bench <target>`, cargo-samply will always execute the
+//! final binary with `--bench` so it behaves exactly like
+//! `cargo bench`.
+//!
+//! The current bench flow has only been validated with Criterion-driven setups.
+//! Other bespoke runners are untested and may need adjustments.
 //!
 //! ### Advanced Options
 //!

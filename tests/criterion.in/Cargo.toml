@@ -1,0 +1,20 @@
+[package]
+name = "criterion-fixture"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bench]]
+name = "criterion_capture"
+# Criterion requires its own main, so keep the default harness disabled.
+harness = false
+
+[dev-dependencies]
+criterion = { version = "0.8.0", default-features = false }
+
+[profile.samply]
+inherits = "release"
+debug = true

@@ -49,9 +49,9 @@ pub enum Error {
     /// Cargo.toml manifest parsing error
     #[error(transparent)]
     TomlManifest(#[from] cargo_toml::Error),
-    /// Binary and example options are mutually exclusive
-    #[error("--bin and --example are mutually exclusive")]
-    BinAndExampleMutuallyExclusive,
+    /// Target-selection flags (bin/example/bench) are mutually exclusive
+    #[error("Target selection flags (--bin, --example, --bench) are mutually exclusive")]
+    MultipleTargetsFlagsSpecified,
     /// Cargo build process failed
     #[error("Build failed")]
     CargoBuildFailed,

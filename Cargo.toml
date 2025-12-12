@@ -16,6 +16,10 @@ categories = ["development-tools", "command-line-utilities"]
 name = "cargo-samply"
 path = "src/main.rs"
 
+[[bin]]
+name = "fake-samply"
+path = "tests/bin/fake_samply.rs"
+
 [lib]
 name = "cargo_samply"
 path = "src/lib.rs"
