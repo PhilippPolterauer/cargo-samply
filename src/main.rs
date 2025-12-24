@@ -20,7 +20,8 @@ use std::vec;
 use clap::Parser;
 
 use crate::util::{
-    ensure_samply_profile, guess_bin, locate_project, resolve_bench_target_name, CommandExt,
+    configure_library_path, ensure_samply_profile, guess_bin, locate_project,
+    resolve_bench_target_name, CommandExt,
 };
 
 const SAMPLY_OVERRIDE_ENV: &str = "CARGO_SAMPLY_SAMPLY_PATH";
@@ -228,11 +229,14 @@ fn configure_samply_command(
     cmd: &mut Command,
     bin_path: &std::path::Path,
     runtime_args: &[String],
-) {
+) -> error::Result<()> {
     cmd.arg("record").arg("--").arg(bin_path);
     if !runtime_args.is_empty() {
         cmd.args(runtime_args);
     }
+    // Configure library path so the target binary can find Rust dynamic libraries
+    configure_library_path(cmd)?;
+    Ok(())
 }
 
 /// Entry point for the cargo-samply application.
@@ -350,7 +354,7 @@ fn run() -> error::Result<()> {
         let samply_program =
             std::env::var(SAMPLY_OVERRIDE_ENV).unwrap_or_else(|_| "samply".to_string());
         let mut samply_cmd = Command::new(&samply_program);
-        configure_samply_command(&mut samply_cmd, &bin_path, &runtime_args);
+        configure_samply_command(&mut samply_cmd, &bin_path, &runtime_args)?;
         match samply_cmd.call() {
             Ok(_) => {}
             Err(error::Error::Io(io_err)) if io_err.kind() == io::ErrorKind::NotFound => {
@@ -359,7 +363,10 @@ fn run() -> error::Result<()> {
             Err(err) => return Err(err),
         }
     } else {
-        Command::new(&bin_path).args(&runtime_args).call()?;
+        let mut cmd = Command::new(&bin_path);
+        cmd.args(&runtime_args);
+        configure_library_path(&mut cmd)?;
+        cmd.call()?;
     }
 
     Ok(())
@@ -399,7 +406,7 @@ mod tests {
     fn samply_command_places_binary_before_separator() {
         let mut cmd = Command::new("samply");
         let runtime_args = vec!["--bench".to_string(), "throughput".to_string()];
-        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args);
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args).unwrap();
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
         let expected = vec![
@@ -416,7 +423,7 @@ mod tests {
     #[test]
     fn samply_command_inserts_separator_even_without_runtime_args() {
         let mut cmd = Command::new("samply");
-        configure_samply_command(&mut cmd, Path::new("target/bin"), &[]);
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &[]).unwrap();
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
         let expected = vec![

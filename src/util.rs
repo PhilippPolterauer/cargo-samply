@@ -23,7 +23,7 @@
 
 use std::{
     fs::{self, OpenOptions},
-    io::Write,
+    io::{self, Write},
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
     str::{from_utf8, FromStr},
@@ -368,6 +368,80 @@ impl CommandExt for Command {
         );
         self
     }
+}
+
+/// Gets the Rust sysroot path by running `rustc --print sysroot`.
+///
+/// # Returns
+///
+/// - `Ok(PathBuf)` - Path to the Rust sysroot
+/// - `Err(Error)` - If rustc command fails or output is invalid
+fn get_rust_sysroot() -> error::Result<PathBuf> {
+    let output = Command::new("rustc")
+        .arg("--print")
+        .arg("sysroot")
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(error::Error::Io(io::Error::new(
+            io::ErrorKind::Other,
+            "Failed to get Rust sysroot",
+        )));
+    }
+    
+    let sysroot = from_utf8(&output.stdout)?.trim().to_string();
+    Ok(PathBuf::from(sysroot))
+}
+
+/// Configures a command with the appropriate library path environment variable
+/// to ensure dynamic libraries from the Rust toolchain can be found.
+///
+/// This function:
+/// - Gets the Rust sysroot path
+/// - Determines the correct environment variable (DYLD_LIBRARY_PATH on macOS,
+///   LD_LIBRARY_PATH on Linux/Unix, PATH on Windows)
+/// - Prepends the sysroot's lib directory to the existing value
+///
+/// # Arguments
+///
+/// * `cmd` - The command to configure with the library path
+///
+/// # Returns
+///
+/// - `Ok(())` - Environment variable was successfully configured
+/// - `Err(Error)` - If sysroot detection fails
+pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
+    let sysroot = get_rust_sysroot()?;
+    let lib_path = sysroot.join("lib");
+    
+    // Determine the correct environment variable based on the platform
+    let (env_var_name, separator) = if cfg!(target_os = "macos") {
+        ("DYLD_LIBRARY_PATH", ":")
+    } else if cfg!(target_os = "windows") {
+        ("PATH", ";")
+    } else {
+        // Linux and other Unix-like systems
+        ("LD_LIBRARY_PATH", ":")
+    };
+    
+    // Get the current value of the environment variable, if any
+    let current_val = std::env::var(env_var_name).unwrap_or_default();
+    
+    // Prepend the sysroot lib path to the current value
+    let new_val = if current_val.is_empty() {
+        lib_path.display().to_string()
+    } else {
+        format!("{}{}{}", lib_path.display(), separator, current_val)
+    };
+    
+    debug!(
+        "Setting {} to: {}",
+        env_var_name,
+        new_val
+    );
+    
+    cmd.env(env_var_name, new_val);
+    Ok(())
 }
 
 #[cfg(test)]
