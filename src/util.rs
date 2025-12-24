@@ -383,9 +383,10 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
         .output()?;
     
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(error::Error::Io(io::Error::new(
             io::ErrorKind::Other,
-            "Failed to get Rust sysroot",
+            format!("Failed to get Rust sysroot: {}", stderr.trim()),
         )));
     }
     
