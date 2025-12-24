@@ -20,7 +20,7 @@ use std::vec;
 use clap::Parser;
 
 use crate::util::{
-    configure_library_path, ensure_samply_profile, guess_bin, locate_project,
+    configure_library_path_for_binary, ensure_samply_profile, guess_bin, locate_project,
     resolve_bench_target_name, CommandExt,
 };
 
@@ -250,8 +250,8 @@ fn configure_samply_command(
     if !runtime_args.is_empty() {
         cmd.args(runtime_args);
     }
-    // Configure library path so the target binary can find Rust dynamic libraries
-    configure_library_path(cmd)?;
+    // Configure library path so the target binary can find Rust/toolchain and target deps dylibs
+    configure_library_path_for_binary(cmd, bin_path)?;
     Ok(())
 }
 
@@ -381,7 +381,7 @@ fn run() -> error::Result<()> {
     } else {
         let mut cmd = Command::new(&bin_path);
         cmd.args(&runtime_args);
-        configure_library_path(&mut cmd)?;
+        configure_library_path_for_binary(&mut cmd, &bin_path)?;
         cmd.call()?;
     }
 

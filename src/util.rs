@@ -384,35 +384,44 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(error::Error::Io(io::Error::other(
-            format!("Failed to get Rust sysroot: {}", stderr.trim()),
-        )));
+        return Err(error::Error::Io(io::Error::other(format!(
+            "Failed to get Rust sysroot: {}",
+            stderr.trim()
+        ))));
     }
 
     let sysroot = from_utf8(&output.stdout)?.trim();
     Ok(PathBuf::from(sysroot))
 }
 
-/// Configures a command with the appropriate library path environment variable
-/// to ensure dynamic libraries from the Rust toolchain can be found.
+/// Configures a command so that both Rust toolchain libs and target `deps/` shared libraries
+/// can be found at runtime.
 ///
-/// This function:
-/// - Gets the Rust sysroot path
-/// - Determines the correct environment variable (DYLD_LIBRARY_PATH on macOS,
-///   LD_LIBRARY_PATH on Linux/Unix, PATH on Windows)
-/// - Prepends the sysroot's lib directories to the existing value
-///
-/// Can be disabled by setting the `CARGO_SAMPLY_NO_SYSROOT_INJECTION` environment variable.
-///
-/// # Arguments
-///
-/// * `cmd` - The command to configure with the library path
-///
-/// # Returns
-///
-/// - `Ok(())` - Environment variable was successfully configured
-/// - `Err(Error)` - If sysroot detection fails
-pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
+/// This mirrors what `cargo run` effectively provides for crates using dynamic linking
+/// (e.g. Bevy's `dynamic_linking` feature, which produces a `bevy_dylib` shared library
+/// under `target/<profile>/deps`).
+pub fn configure_library_path_for_binary(
+    cmd: &mut Command,
+    bin_path: &std::path::Path,
+) -> error::Result<()> {
+    let mut extra_paths = Vec::new();
+    if let Some(bin_dir) = bin_path.parent() {
+        if bin_dir
+            .file_name()
+            .is_some_and(|name| name == std::ffi::OsStr::new("deps"))
+        {
+            extra_paths.push(bin_dir.to_path_buf());
+        } else {
+            extra_paths.push(bin_dir.join("deps"));
+        }
+    }
+    configure_library_path_impl(cmd, &extra_paths)
+}
+
+fn configure_library_path_impl(
+    cmd: &mut Command,
+    extra_paths: &[std::path::PathBuf],
+) -> error::Result<()> {
     // Allow disabling sysroot injection for testing purposes
     if std::env::var("CARGO_SAMPLY_NO_SYSROOT_INJECTION").is_ok() {
         debug!("Skipping sysroot injection (CARGO_SAMPLY_NO_SYSROOT_INJECTION is set)");
@@ -431,10 +440,16 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
         ("LD_LIBRARY_PATH", ":")
     };
 
-    // Get the current value of the environment variable, if any
-    // Use to_string_lossy to handle non-UTF-8 paths gracefully
-    let current_val = std::env::var_os(env_var_name)
-        .map(|s| s.to_string_lossy().into_owned())
+    // Get the current value of the environment variable, preferring an explicit
+    // value already configured on `cmd`.
+    let current_val = cmd
+        .get_envs()
+        .find_map(|(k, v)| {
+            (k == std::ffi::OsStr::new(env_var_name))
+                .then(|| v.map(|v| v.to_string_lossy().into_owned()))
+                .flatten()
+        })
+        .or_else(|| std::env::var_os(env_var_name).map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_default();
 
     // Build the library paths. We need to include both the general lib directory
@@ -469,25 +484,33 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
         .join(&target_triple)
         .join("lib");
 
-    // Prepend both lib paths to the current value
-    // Format: target_lib_path:lib_path:current_val
-    let new_val = if current_val.is_empty() {
-        format!(
-            "{}{}{}",
-            target_lib_path.display(),
-            separator,
-            lib_path.display()
-        )
-    } else {
-        format!(
-            "{}{}{}{}{}",
-            target_lib_path.display(),
-            separator,
-            lib_path.display(),
-            separator,
-            current_val
-        )
-    };
+    let mut parts: Vec<String> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for p in extra_paths {
+        let s = p.to_string_lossy().into_owned();
+        if !s.is_empty() && seen.insert(s.clone()) {
+            parts.push(s);
+        }
+    }
+
+    for p in [&target_lib_path, &lib_path] {
+        let s = p.to_string_lossy().into_owned();
+        if !s.is_empty() && seen.insert(s.clone()) {
+            parts.push(s);
+        }
+    }
+
+    if !current_val.is_empty() {
+        for seg in current_val.split(separator) {
+            let seg = seg.trim();
+            if !seg.is_empty() && seen.insert(seg.to_string()) {
+                parts.push(seg.to_string());
+            }
+        }
+    }
+
+    let new_val = parts.join(separator);
 
     debug!("Setting {} to: {}", env_var_name, new_val);
 
@@ -661,10 +684,11 @@ version = "0.1.0"
     #[test]
     fn test_configure_library_path_sets_env_var() {
         let _env_guard = env_lock();
-        // Test that configure_library_path sets the appropriate environment variable
+        // Test that sysroot library path injection sets the appropriate environment variable
         let mut cmd = Command::new("echo");
 
-        configure_library_path(&mut cmd).expect("Failed to configure library path");
+        super::configure_library_path_impl(&mut cmd, &[])
+            .expect("Failed to configure library path");
 
         // Get the environment variables from the command
         let env_vars: std::collections::HashMap<_, _> = cmd
@@ -714,7 +738,7 @@ version = "0.1.0"
     #[test]
     fn test_configure_library_path_preserves_existing_path() {
         let _env_guard = env_lock();
-        // Test that configure_library_path preserves existing paths
+        // Test that sysroot library path injection preserves existing paths
         let env_var_name = if cfg!(target_os = "macos") {
             "DYLD_LIBRARY_PATH"
         } else if cfg!(target_os = "windows") {
@@ -727,7 +751,8 @@ version = "0.1.0"
         std::env::set_var(env_var_name, existing_path);
 
         let mut cmd = Command::new("echo");
-        configure_library_path(&mut cmd).expect("Failed to configure library path");
+        super::configure_library_path_impl(&mut cmd, &[])
+            .expect("Failed to configure library path");
 
         // get_envs() returns explicitly set environment variables on the command
         // We need to check if the value was set
@@ -768,7 +793,8 @@ version = "0.1.0"
         std::env::set_var("CARGO_SAMPLY_NO_SYSROOT_INJECTION", "1");
 
         let mut cmd = Command::new("echo");
-        configure_library_path(&mut cmd).expect("Should succeed even when disabled");
+        super::configure_library_path_impl(&mut cmd, &[])
+            .expect("Should succeed even when disabled");
 
         // Get the environment variables from the command
         let env_vars: std::collections::HashMap<_, _> = cmd

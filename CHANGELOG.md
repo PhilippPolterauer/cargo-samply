@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Date
 
+## [0.4.0] - 2025-12-24
+
+### Added
+
+- Support for `CARGO_SAMPLY_NO_SYSROOT_INJECTION` environment variable to disable sysroot injection.
+- New integration test for dynamic linking scenarios in `tests/dylib.in`.
+- Target-specific `rustlib` directory support in library path configuration.
+
+### Fixed
+
+- Fixed dynamic library path resolution for binaries with Rust dylib dependencies (e.g., projects using `prefer-dynamic` or Bevy with `dynamic_linking`).
+- Added automatic detection of Rust sysroot and injection of appropriate library paths (`DYLD_LIBRARY_PATH` on macOS, `LD_LIBRARY_PATH` on Linux, `PATH` on Windows) when spawning profiled binaries.
+
+### Internal
+
+- Added thread-safe environment variable testing using a global mutex to prevent flaky test failures in CI.
+
 ## [0.3.4] - 2025-12-12
 
 ### Added
