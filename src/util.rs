@@ -381,15 +381,14 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
         .arg("--print")
         .arg("sysroot")
         .output()?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(error::Error::Io(io::Error::new(
-            io::ErrorKind::Other,
+        return Err(error::Error::Io(io::Error::other(
             format!("Failed to get Rust sysroot: {}", stderr.trim()),
         )));
     }
-    
+
     let sysroot = from_utf8(&output.stdout)?.trim();
     Ok(PathBuf::from(sysroot))
 }
@@ -419,9 +418,9 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
         debug!("Skipping sysroot injection (CARGO_SAMPLY_NO_SYSROOT_INJECTION is set)");
         return Ok(());
     }
-    
+
     let sysroot = get_rust_sysroot()?;
-    
+
     // Determine the correct environment variable based on the platform
     let (env_var_name, separator) = if cfg!(target_os = "macos") {
         ("DYLD_LIBRARY_PATH", ":")
@@ -431,13 +430,13 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
         // Linux and other Unix-like systems
         ("LD_LIBRARY_PATH", ":")
     };
-    
+
     // Get the current value of the environment variable, if any
     // Use to_string_lossy to handle non-UTF-8 paths gracefully
     let current_val = std::env::var_os(env_var_name)
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
-    
+
     // Build the library paths. We need to include both the general lib directory
     // and the target-specific rustlib directory (like cargo does).
     // The target triple is detected from the host system.
@@ -463,17 +462,22 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
                 "unknown".to_string()
             }
         });
-    
+
     let target_lib_path = sysroot
         .join("lib")
         .join("rustlib")
         .join(&target_triple)
         .join("lib");
-    
+
     // Prepend both lib paths to the current value
     // Format: target_lib_path:lib_path:current_val
     let new_val = if current_val.is_empty() {
-        format!("{}{}{}", target_lib_path.display(), separator, lib_path.display())
+        format!(
+            "{}{}{}",
+            target_lib_path.display(),
+            separator,
+            lib_path.display()
+        )
     } else {
         format!(
             "{}{}{}{}{}",
@@ -484,13 +488,9 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
             current_val
         )
     };
-    
-    debug!(
-        "Setting {} to: {}",
-        env_var_name,
-        new_val
-    );
-    
+
+    debug!("Setting {} to: {}", env_var_name, new_val);
+
     cmd.env(env_var_name, new_val);
     Ok(())
 }
@@ -638,16 +638,24 @@ version = "0.1.0"
     fn test_get_rust_sysroot_returns_valid_path() {
         // Test that get_rust_sysroot returns a valid path
         let sysroot = get_rust_sysroot().expect("Failed to get Rust sysroot");
-        
+
         // Verify the path exists
         assert!(sysroot.exists(), "Sysroot path should exist: {:?}", sysroot);
-        
+
         // Verify it's a directory
-        assert!(sysroot.is_dir(), "Sysroot should be a directory: {:?}", sysroot);
-        
+        assert!(
+            sysroot.is_dir(),
+            "Sysroot should be a directory: {:?}",
+            sysroot
+        );
+
         // Verify it has a lib subdirectory (which we need for dynamic linking)
         let lib_dir = sysroot.join("lib");
-        assert!(lib_dir.exists(), "Sysroot should have a lib directory: {:?}", lib_dir);
+        assert!(
+            lib_dir.exists(),
+            "Sysroot should have a lib directory: {:?}",
+            lib_dir
+        );
     }
 
     #[test]
@@ -655,14 +663,22 @@ version = "0.1.0"
         let _env_guard = env_lock();
         // Test that configure_library_path sets the appropriate environment variable
         let mut cmd = Command::new("echo");
-        
+
         configure_library_path(&mut cmd).expect("Failed to configure library path");
-        
+
         // Get the environment variables from the command
-        let env_vars: std::collections::HashMap<_, _> = cmd.get_envs()
-            .filter_map(|(k, v)| v.map(|v| (k.to_string_lossy().to_string(), v.to_string_lossy().to_string())))
+        let env_vars: std::collections::HashMap<_, _> = cmd
+            .get_envs()
+            .filter_map(|(k, v)| {
+                v.map(|v| {
+                    (
+                        k.to_string_lossy().to_string(),
+                        v.to_string_lossy().to_string(),
+                    )
+                })
+            })
             .collect();
-        
+
         // Check that the correct environment variable is set based on platform
         let expected_env_var = if cfg!(target_os = "macos") {
             "DYLD_LIBRARY_PATH"
@@ -671,19 +687,21 @@ version = "0.1.0"
         } else {
             "LD_LIBRARY_PATH"
         };
-        
+
         assert!(
             env_vars.contains_key(expected_env_var),
             "Expected {} to be set, but it was not. Environment: {:?}",
             expected_env_var,
             env_vars
         );
-        
+
         // Verify the path contains the sysroot lib directory
         let sysroot = get_rust_sysroot().expect("Failed to get Rust sysroot");
         let expected_lib_path = sysroot.join("lib");
-        let env_value = env_vars.get(expected_env_var).expect("Env var should exist");
-        
+        let env_value = env_vars
+            .get(expected_env_var)
+            .expect("Env var should exist");
+
         assert!(
             env_value.contains(&expected_lib_path.display().to_string()),
             "Environment variable {} should contain {}, but got: {}",
@@ -704,13 +722,13 @@ version = "0.1.0"
         } else {
             "LD_LIBRARY_PATH"
         };
-        
+
         let existing_path = "/some/existing/path";
         std::env::set_var(env_var_name, existing_path);
-        
+
         let mut cmd = Command::new("echo");
         configure_library_path(&mut cmd).expect("Failed to configure library path");
-        
+
         // get_envs() returns explicitly set environment variables on the command
         // We need to check if the value was set
         let mut found = false;
@@ -724,9 +742,13 @@ version = "0.1.0"
                 }
             }
         }
-        
-        assert!(found, "Environment variable {} should be set on command", env_var_name);
-        
+
+        assert!(
+            found,
+            "Environment variable {} should be set on command",
+            env_var_name
+        );
+
         // Verify existing path is preserved
         assert!(
             env_value.contains(existing_path),
@@ -734,7 +756,7 @@ version = "0.1.0"
             existing_path,
             env_value
         );
-        
+
         // Clean up
         std::env::remove_var(env_var_name);
     }
@@ -744,15 +766,23 @@ version = "0.1.0"
         let _env_guard = env_lock();
         // Test that sysroot injection can be disabled via environment variable
         std::env::set_var("CARGO_SAMPLY_NO_SYSROOT_INJECTION", "1");
-        
+
         let mut cmd = Command::new("echo");
         configure_library_path(&mut cmd).expect("Should succeed even when disabled");
-        
+
         // Get the environment variables from the command
-        let env_vars: std::collections::HashMap<_, _> = cmd.get_envs()
-            .filter_map(|(k, v)| v.map(|v| (k.to_string_lossy().to_string(), v.to_string_lossy().to_string())))
+        let env_vars: std::collections::HashMap<_, _> = cmd
+            .get_envs()
+            .filter_map(|(k, v)| {
+                v.map(|v| {
+                    (
+                        k.to_string_lossy().to_string(),
+                        v.to_string_lossy().to_string(),
+                    )
+                })
+            })
             .collect();
-        
+
         // Verify that library path was NOT set
         let env_var_name = if cfg!(target_os = "macos") {
             "DYLD_LIBRARY_PATH"
@@ -761,14 +791,14 @@ version = "0.1.0"
         } else {
             "LD_LIBRARY_PATH"
         };
-        
+
         assert!(
             !env_vars.contains_key(env_var_name),
             "Expected {} to NOT be set when injection is disabled, but it was: {:?}",
             env_var_name,
             env_vars
         );
-        
+
         // Clean up
         std::env::remove_var("CARGO_SAMPLY_NO_SYSROOT_INJECTION");
     }
