@@ -1,0 +1,5 @@
+```console
+$ cargo-samply samply --no-samply
+Hello from dynamically linked binary!
+
+```

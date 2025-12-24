@@ -401,7 +401,9 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
 /// - Gets the Rust sysroot path
 /// - Determines the correct environment variable (DYLD_LIBRARY_PATH on macOS,
 ///   LD_LIBRARY_PATH on Linux/Unix, PATH on Windows)
-/// - Prepends the sysroot's lib directory to the existing value
+/// - Prepends the sysroot's lib directories to the existing value
+///
+/// Can be disabled by setting the `CARGO_SAMPLY_NO_SYSROOT_INJECTION` environment variable.
 ///
 /// # Arguments
 ///
@@ -412,8 +414,13 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
 /// - `Ok(())` - Environment variable was successfully configured
 /// - `Err(Error)` - If sysroot detection fails
 pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
+    // Allow disabling sysroot injection for testing purposes
+    if std::env::var("CARGO_SAMPLY_NO_SYSROOT_INJECTION").is_ok() {
+        debug!("Skipping sysroot injection (CARGO_SAMPLY_NO_SYSROOT_INJECTION is set)");
+        return Ok(());
+    }
+    
     let sysroot = get_rust_sysroot()?;
-    let lib_path = sysroot.join("lib");
     
     // Determine the correct environment variable based on the platform
     let (env_var_name, separator) = if cfg!(target_os = "macos") {
@@ -431,11 +438,51 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
     
-    // Prepend the sysroot lib path to the current value
+    // Build the library paths. We need to include both the general lib directory
+    // and the target-specific rustlib directory (like cargo does).
+    // The target triple is detected from the host system.
+    let lib_path = sysroot.join("lib");
+    let target_triple = std::env::var("TARGET")
+        .or_else(|_| std::env::var("CARGO_BUILD_TARGET"))
+        .unwrap_or_else(|_| {
+            // Default to the current host target triple
+            if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
+                "x86_64-apple-darwin".to_string()
+            } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+                "aarch64-apple-darwin".to_string()
+            } else if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
+                "x86_64-unknown-linux-gnu".to_string()
+            } else if cfg!(target_os = "linux") && cfg!(target_arch = "aarch64") {
+                "aarch64-unknown-linux-gnu".to_string()
+            } else if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") {
+                "x86_64-pc-windows-msvc".to_string()
+            } else if cfg!(target_os = "windows") && cfg!(target_arch = "aarch64") {
+                "aarch64-pc-windows-msvc".to_string()
+            } else {
+                // Fallback - try to get from rustc
+                "unknown".to_string()
+            }
+        });
+    
+    let target_lib_path = sysroot
+        .join("lib")
+        .join("rustlib")
+        .join(&target_triple)
+        .join("lib");
+    
+    // Prepend both lib paths to the current value
+    // Format: target_lib_path:lib_path:current_val
     let new_val = if current_val.is_empty() {
-        lib_path.display().to_string()
+        format!("{}{}{}", target_lib_path.display(), separator, lib_path.display())
     } else {
-        format!("{}{}{}", lib_path.display(), separator, current_val)
+        format!(
+            "{}{}{}{}{}",
+            target_lib_path.display(),
+            separator,
+            lib_path.display(),
+            separator,
+            current_val
+        )
     };
     
     debug!(
@@ -672,5 +719,38 @@ version = "0.1.0"
         
         // Clean up
         std::env::remove_var(env_var_name);
+    }
+
+    #[test]
+    fn test_configure_library_path_can_be_disabled() {
+        // Test that sysroot injection can be disabled via environment variable
+        std::env::set_var("CARGO_SAMPLY_NO_SYSROOT_INJECTION", "1");
+        
+        let mut cmd = Command::new("echo");
+        configure_library_path(&mut cmd).expect("Should succeed even when disabled");
+        
+        // Get the environment variables from the command
+        let env_vars: std::collections::HashMap<_, _> = cmd.get_envs()
+            .filter_map(|(k, v)| v.map(|v| (k.to_string_lossy().to_string(), v.to_string_lossy().to_string())))
+            .collect();
+        
+        // Verify that library path was NOT set
+        let env_var_name = if cfg!(target_os = "macos") {
+            "DYLD_LIBRARY_PATH"
+        } else if cfg!(target_os = "windows") {
+            "PATH"
+        } else {
+            "LD_LIBRARY_PATH"
+        };
+        
+        assert!(
+            !env_vars.contains_key(env_var_name),
+            "Expected {} to NOT be set when injection is disabled, but it was: {:?}",
+            env_var_name,
+            env_vars
+        );
+        
+        // Clean up
+        std::env::remove_var("CARGO_SAMPLY_NO_SYSROOT_INJECTION");
     }
 }

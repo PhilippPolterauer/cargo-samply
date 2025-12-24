@@ -1,0 +1,18 @@
+[package]
+name = "dylib-test"
+version = "0.1.0"
+edition = "2021"
+
+[profile.dev]
+# Force dynamic linking to std and other crates
+# This makes the binary require libstd.so/dylib at runtime
+opt-level = 0
+
+[profile.release]
+opt-level = 2
+
+[dependencies]
+
+[profile.samply]
+inherits = "release"
+debug = true
