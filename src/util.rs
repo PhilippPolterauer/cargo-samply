@@ -401,9 +401,7 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
 /// - `Ok(String)` - The host target triple (e.g., "x86_64-unknown-linux-gnu")
 /// - `Err(Error)` - If rustc command fails or output is invalid
 fn get_rustc_host_target() -> error::Result<String> {
-    let output = Command::new("rustc")
-        .arg("-vV")
-        .output()?;
+    let output = Command::new("rustc").arg("-vV").output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

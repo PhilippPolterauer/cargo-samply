@@ -471,7 +471,8 @@ mod tests {
     fn samply_command_places_binary_before_separator() {
         let mut cmd = Command::new("samply");
         let runtime_args = vec!["--bench".to_string(), "throughput".to_string()];
-        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args, "samply").unwrap();
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args, "samply")
+            .unwrap();
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
         let expected = vec![
