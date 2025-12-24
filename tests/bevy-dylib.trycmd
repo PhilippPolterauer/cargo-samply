@@ -1,5 +1,10 @@
 # Bevy dynamic linking smoke test
 
+<!-- ```console
+$ CARGO_SAMPLY_NO_SYSROOT_INJECTION=1 cargo-samply --no-samply
+[..]bevy_test: error while loading shared libraries: libbevy_dylib[..]
+``` -->
+
 ```console
 $ cargo-samply --no-samply
 Bevy app starting...
@@ -7,9 +12,4 @@ Setup system ran.
 Exiting...
 Bevy app finished.
 
-```
-
-```console
-$ CARGO_SAMPLY_NO_SYSROOT_INJECTION=1 cargo-samply --no-samply
-[..]bevy_test: error while loading shared libraries: libbevy_dylib[..]
 ```
