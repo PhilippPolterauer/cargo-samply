@@ -225,6 +225,22 @@ fn prepare_runtime_args(bench_requires_flag: bool, trailing_args: Vec<String>) -
     args
 }
 
+/// Configures a samply command with the binary path, runtime arguments, and library path.
+///
+/// This function sets up the command to run `samply record` with the target binary,
+/// and configures the library path environment variable to ensure the binary can
+/// find dynamically linked Rust libraries.
+///
+/// # Arguments
+///
+/// * `cmd` - The samply command to configure
+/// * `bin_path` - Path to the target binary
+/// * `runtime_args` - Arguments to pass to the target binary
+///
+/// # Returns
+///
+/// - `Ok(())` - Command was successfully configured
+/// - `Err(Error)` - If library path configuration fails
 fn configure_samply_command(
     cmd: &mut Command,
     bin_path: &std::path::Path,

@@ -389,7 +389,7 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
         )));
     }
     
-    let sysroot = from_utf8(&output.stdout)?.trim().to_string();
+    let sysroot = from_utf8(&output.stdout)?.trim();
     Ok(PathBuf::from(sysroot))
 }
 
@@ -425,7 +425,9 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
     };
     
     // Get the current value of the environment variable, if any
-    let current_val = std::env::var(env_var_name).unwrap_or_default();
+    let current_val = std::env::var_os(env_var_name)
+        .and_then(|s| s.into_string().ok())
+        .unwrap_or_default();
     
     // Prepend the sysroot lib path to the current value
     let new_val = if current_val.is_empty() {
