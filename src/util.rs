@@ -580,4 +580,97 @@ version = "0.1.0"
             panic!("Expected NoBinaryFound, got: {:?}", result);
         }
     }
+
+    #[test]
+    fn test_get_rust_sysroot_returns_valid_path() {
+        // Test that get_rust_sysroot returns a valid path
+        let sysroot = get_rust_sysroot().expect("Failed to get Rust sysroot");
+        
+        // Verify the path exists
+        assert!(sysroot.exists(), "Sysroot path should exist: {:?}", sysroot);
+        
+        // Verify it's a directory
+        assert!(sysroot.is_dir(), "Sysroot should be a directory: {:?}", sysroot);
+        
+        // Verify it has a lib subdirectory (which we need for dynamic linking)
+        let lib_dir = sysroot.join("lib");
+        assert!(lib_dir.exists(), "Sysroot should have a lib directory: {:?}", lib_dir);
+    }
+
+    #[test]
+    fn test_configure_library_path_sets_env_var() {
+        // Test that configure_library_path sets the appropriate environment variable
+        let mut cmd = Command::new("echo");
+        
+        configure_library_path(&mut cmd).expect("Failed to configure library path");
+        
+        // Get the environment variables from the command
+        let env_vars: std::collections::HashMap<_, _> = cmd.get_envs()
+            .filter_map(|(k, v)| v.map(|v| (k.to_string_lossy().to_string(), v.to_string_lossy().to_string())))
+            .collect();
+        
+        // Check that the correct environment variable is set based on platform
+        let expected_env_var = if cfg!(target_os = "macos") {
+            "DYLD_LIBRARY_PATH"
+        } else if cfg!(target_os = "windows") {
+            "PATH"
+        } else {
+            "LD_LIBRARY_PATH"
+        };
+        
+        assert!(
+            env_vars.contains_key(expected_env_var),
+            "Expected {} to be set, but it was not. Environment: {:?}",
+            expected_env_var,
+            env_vars
+        );
+        
+        // Verify the path contains the sysroot lib directory
+        let sysroot = get_rust_sysroot().expect("Failed to get Rust sysroot");
+        let expected_lib_path = sysroot.join("lib");
+        let env_value = env_vars.get(expected_env_var).expect("Env var should exist");
+        
+        assert!(
+            env_value.contains(&expected_lib_path.display().to_string()),
+            "Environment variable {} should contain {}, but got: {}",
+            expected_env_var,
+            expected_lib_path.display(),
+            env_value
+        );
+    }
+
+    #[test]
+    fn test_configure_library_path_preserves_existing_path() {
+        // Test that configure_library_path preserves existing paths
+        let env_var_name = if cfg!(target_os = "macos") {
+            "DYLD_LIBRARY_PATH"
+        } else if cfg!(target_os = "windows") {
+            "PATH"
+        } else {
+            "LD_LIBRARY_PATH"
+        };
+        
+        let existing_path = "/some/existing/path";
+        std::env::set_var(env_var_name, existing_path);
+        
+        let mut cmd = Command::new("echo");
+        configure_library_path(&mut cmd).expect("Failed to configure library path");
+        
+        let env_vars: std::collections::HashMap<_, _> = cmd.get_envs()
+            .filter_map(|(k, v)| v.map(|v| (k.to_string_lossy().to_string(), v.to_string_lossy().to_string())))
+            .collect();
+        
+        let env_value = env_vars.get(env_var_name).expect("Env var should exist");
+        
+        // Verify existing path is preserved
+        assert!(
+            env_value.contains(existing_path),
+            "Existing path should be preserved. Expected to find '{}' in '{}'",
+            existing_path,
+            env_value
+        );
+        
+        // Clean up
+        std::env::remove_var(env_var_name);
+    }
 }
