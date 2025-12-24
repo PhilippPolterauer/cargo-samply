@@ -394,6 +394,37 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
     Ok(PathBuf::from(sysroot))
 }
 
+/// Gets the Rust host target triple by running `rustc -vV`.
+///
+/// # Returns
+///
+/// - `Ok(String)` - The host target triple (e.g., "x86_64-unknown-linux-gnu")
+/// - `Err(Error)` - If rustc command fails or output is invalid
+fn get_rustc_host_target() -> error::Result<String> {
+    let output = Command::new("rustc")
+        .arg("-vV")
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(error::Error::Io(io::Error::other(format!(
+            "Failed to get Rust host target: {}",
+            stderr.trim()
+        ))));
+    }
+
+    let output_str = from_utf8(&output.stdout)?;
+    for line in output_str.lines() {
+        if let Some(host) = line.strip_prefix("host: ") {
+            return Ok(host.trim().to_string());
+        }
+    }
+
+    Err(error::Error::Io(io::Error::other(
+        "Failed to parse host target from rustc output",
+    )))
+}
+
 /// Configures a command so that both Rust toolchain libs and target `deps/` shared libraries
 /// can be found at runtime.
 ///
@@ -403,6 +434,7 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
 pub fn configure_library_path_for_binary(
     cmd: &mut Command,
     bin_path: &std::path::Path,
+    profile: &str,
 ) -> error::Result<()> {
     let mut extra_paths = Vec::new();
     if let Some(bin_dir) = bin_path.parent() {
@@ -415,12 +447,31 @@ pub fn configure_library_path_for_binary(
             extra_paths.push(bin_dir.join("deps"));
         }
     }
-    configure_library_path_impl(cmd, &extra_paths)
+
+    let target_triple = infer_target_triple(bin_path, profile);
+    configure_library_path_impl(cmd, &extra_paths, &target_triple)
+}
+
+fn infer_target_triple(bin_path: &std::path::Path, profile: &str) -> String {
+    let components: Vec<_> = bin_path.components().collect();
+    if let Some(target_idx) = components.iter().position(|c| c.as_os_str() == "target") {
+        // Check for target/<triple>/<profile>
+        if let Some(triple) = components.get(target_idx + 1) {
+            if let Some(prof) = components.get(target_idx + 2) {
+                if prof.as_os_str() == profile {
+                    return triple.as_os_str().to_string_lossy().into_owned();
+                }
+            }
+        }
+    }
+
+    get_rustc_host_target().unwrap_or_else(|_| "unknown".to_string())
 }
 
 fn configure_library_path_impl(
     cmd: &mut Command,
     extra_paths: &[std::path::PathBuf],
+    target_triple: &str,
 ) -> error::Result<()> {
     // Allow disabling sysroot injection for testing purposes
     if std::env::var("CARGO_SAMPLY_NO_SYSROOT_INJECTION").is_ok() {
@@ -456,32 +507,11 @@ fn configure_library_path_impl(
     // and the target-specific rustlib directory (like cargo does).
     // The target triple is detected from the host system.
     let lib_path = sysroot.join("lib");
-    let target_triple = std::env::var("TARGET")
-        .or_else(|_| std::env::var("CARGO_BUILD_TARGET"))
-        .unwrap_or_else(|_| {
-            // Default to the current host target triple
-            if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
-                "x86_64-apple-darwin".to_string()
-            } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
-                "aarch64-apple-darwin".to_string()
-            } else if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
-                "x86_64-unknown-linux-gnu".to_string()
-            } else if cfg!(target_os = "linux") && cfg!(target_arch = "aarch64") {
-                "aarch64-unknown-linux-gnu".to_string()
-            } else if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") {
-                "x86_64-pc-windows-msvc".to_string()
-            } else if cfg!(target_os = "windows") && cfg!(target_arch = "aarch64") {
-                "aarch64-pc-windows-msvc".to_string()
-            } else {
-                // Fallback - try to get from rustc
-                "unknown".to_string()
-            }
-        });
 
     let target_lib_path = sysroot
         .join("lib")
         .join("rustlib")
-        .join(&target_triple)
+        .join(target_triple)
         .join("lib");
 
     let mut parts: Vec<String> = Vec::new();
@@ -688,7 +718,8 @@ version = "0.1.0"
         // Test that sysroot library path injection sets the appropriate environment variable
         let mut cmd = Command::new("echo");
 
-        super::configure_library_path_impl(&mut cmd, &[])
+        let host_triple = get_rustc_host_target().unwrap();
+        super::configure_library_path_impl(&mut cmd, &[], &host_triple)
             .expect("Failed to configure library path");
 
         // Get the environment variables from the command
@@ -765,7 +796,8 @@ version = "0.1.0"
         }
 
         let mut cmd = Command::new("echo");
-        let result = super::configure_library_path_impl(&mut cmd, &[]);
+        let host_triple = get_rustc_host_target().unwrap();
+        let result = super::configure_library_path_impl(&mut cmd, &[], &host_triple);
 
         // Clean up
         if let Some(val) = original_val {
@@ -812,7 +844,8 @@ version = "0.1.0"
         std::env::set_var("CARGO_SAMPLY_NO_SYSROOT_INJECTION", "1");
 
         let mut cmd = Command::new("echo");
-        super::configure_library_path_impl(&mut cmd, &[])
+        let host_triple = get_rustc_host_target().unwrap();
+        super::configure_library_path_impl(&mut cmd, &[], &host_triple)
             .expect("Should succeed even when disabled");
 
         // Get the environment variables from the command

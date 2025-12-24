@@ -2,7 +2,7 @@
 $ cargo-samply samply -v --no-samply
 debug: running "cargo" with args: ["locate-project", "--workspace", "--message-format", "plain"]
 debug: cargo.toml: "[CWD]/Cargo.toml"
-debug: running "cargo" with args: ["build", "--profile", "samply", "--bin", "bin"]
+debug: running "cargo" with args: ["build", "--message-format=json-diagnostic-rendered-ansi", "--profile", "samply", "--bin", "bin"]
 debug: Setting [..] to: [..]
 debug: running "[CWD]/target/samply/bin" with args: []
 Hello, world!

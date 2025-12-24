@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed dynamic library path resolution for binaries with Rust dylib dependencies (e.g., projects using `prefer-dynamic` or Bevy with `dynamic_linking`).
 - Added automatic detection of Rust sysroot and injection of appropriate library paths (`DYLD_LIBRARY_PATH` on macOS, `LD_LIBRARY_PATH` on Linux, `PATH` on Windows) when spawning profiled binaries.
 - Improved error message for rustc sysroot detection failure.
+- Improved host target detection by querying `rustc` instead of using hardcoded values.
+- Improved binary path detection by parsing `cargo build` output, enabling support for cross-compilation and custom target directories.
+- Improved target triple detection for library path configuration by inferring it from the binary path, falling back to the host target.
 
 ### Internal
 

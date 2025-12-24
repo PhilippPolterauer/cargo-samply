@@ -11,12 +11,14 @@ mod error;
 mod util;
 
 use std::fs;
-use std::io;
+use std::io::{self, BufReader};
 use std::mem;
-use std::process::Command;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::time::SystemTime;
 use std::vec;
 
+use cargo_metadata::{Message, TargetKind as CargoTargetKind};
 use clap::Parser;
 
 use crate::util::{
@@ -245,13 +247,14 @@ fn configure_samply_command(
     cmd: &mut Command,
     bin_path: &std::path::Path,
     runtime_args: &[String],
+    profile: &str,
 ) -> error::Result<()> {
     cmd.arg("record").arg("--").arg(bin_path);
     if !runtime_args.is_empty() {
         cmd.args(runtime_args);
     }
     // Configure library path so the target binary can find Rust/toolchain and target deps dylibs
-    configure_library_path_for_binary(cmd, bin_path)?;
+    configure_library_path_for_binary(cmd, bin_path, profile)?;
     Ok(())
 }
 
@@ -336,6 +339,7 @@ fn run() -> error::Result<()> {
     // (matching what `cargo bench --no-run` would do).
     let mut args = vec![
         "build",
+        "--message-format=json-diagnostic-rendered-ansi",
         "--profile",
         &cli.profile,
         target.kind.cargo_flag(),
@@ -348,7 +352,48 @@ fn run() -> error::Result<()> {
     if cli.no_default_features {
         args.push("--no-default-features");
     }
-    let exit_code = Command::new("cargo").args(args).call()?;
+
+    let mut cmd = Command::new("cargo");
+    cmd.args(args);
+    cmd.stdout(Stdio::piped());
+
+    debug!(
+        "running {:?} with args: {:?}",
+        cmd.get_program(),
+        cmd.get_args().collect::<Vec<_>>()
+    );
+
+    let mut child = cmd.spawn()?;
+    let stdout = child.stdout.take().unwrap();
+    let reader = BufReader::new(stdout);
+    let mut bin_path: Option<PathBuf> = None;
+
+    for message in Message::parse_stream(reader) {
+        match message? {
+            Message::CompilerMessage(msg) => {
+                if let Some(rendered) = msg.message.rendered {
+                    eprint!("{}", rendered);
+                }
+            }
+            Message::CompilerArtifact(artifact) => {
+                if artifact.target.name == target.name
+                    && artifact.target.kind.iter().any(|k| {
+                        k == &CargoTargetKind::Bin
+                            || k == &CargoTargetKind::Example
+                            || k == &CargoTargetKind::Bench
+                            || k == &CargoTargetKind::Test
+                    })
+                {
+                    if let Some(path) = artifact.executable {
+                        bin_path = Some(path.into());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let exit_code = child.wait()?;
     if !exit_code.success() {
         return Err(error::Error::CargoBuildFailed);
     }
@@ -358,7 +403,11 @@ fn run() -> error::Result<()> {
     let root = cargo_toml.parent().unwrap();
     // Locate the freshly built artifact inside `target/<profile>/...`. Bench
     // locations (deps dir) have only been tested with Criterion harness output.
-    let bin_path = resolve_target_path(root, &cli.profile, &target)?;
+    let bin_path = if let Some(path) = bin_path {
+        path
+    } else {
+        resolve_target_path(root, &cli.profile, &target)?
+    };
 
     if !bin_path.exists() {
         return Err(error::Error::BinaryNotFound { path: bin_path });
@@ -370,7 +419,7 @@ fn run() -> error::Result<()> {
         let samply_program =
             std::env::var(SAMPLY_OVERRIDE_ENV).unwrap_or_else(|_| "samply".to_string());
         let mut samply_cmd = Command::new(&samply_program);
-        configure_samply_command(&mut samply_cmd, &bin_path, &runtime_args)?;
+        configure_samply_command(&mut samply_cmd, &bin_path, &runtime_args, &cli.profile)?;
         match samply_cmd.call() {
             Ok(_) => {}
             Err(error::Error::Io(io_err)) if io_err.kind() == io::ErrorKind::NotFound => {
@@ -381,7 +430,7 @@ fn run() -> error::Result<()> {
     } else {
         let mut cmd = Command::new(&bin_path);
         cmd.args(&runtime_args);
-        configure_library_path_for_binary(&mut cmd, &bin_path)?;
+        configure_library_path_for_binary(&mut cmd, &bin_path, &cli.profile)?;
         cmd.call()?;
     }
 
@@ -422,7 +471,7 @@ mod tests {
     fn samply_command_places_binary_before_separator() {
         let mut cmd = Command::new("samply");
         let runtime_args = vec!["--bench".to_string(), "throughput".to_string()];
-        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args).unwrap();
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args, "samply").unwrap();
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
         let expected = vec![
@@ -439,7 +488,7 @@ mod tests {
     #[test]
     fn samply_command_inserts_separator_even_without_runtime_args() {
         let mut cmd = Command::new("samply");
-        configure_samply_command(&mut cmd, Path::new("target/bin"), &[]).unwrap();
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &[], "samply").unwrap();
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
         let expected = vec![
