@@ -659,6 +659,7 @@ version = "0.1.0"
 
     #[test]
     fn test_get_rust_sysroot_returns_valid_path() {
+        let _env_guard = env_lock();
         // Test that get_rust_sysroot returns a valid path
         let sysroot = get_rust_sysroot().expect("Failed to get Rust sysroot");
 
@@ -748,11 +749,32 @@ version = "0.1.0"
         };
 
         let existing_path = "/some/existing/path";
-        std::env::set_var(env_var_name, existing_path);
+
+        // On Windows, we must append to PATH rather than overwriting it,
+        // otherwise Command::new("rustc") will fail.
+        let original_val = std::env::var_os(env_var_name);
+        if cfg!(target_os = "windows") {
+            let mut new_val = original_val.clone().unwrap_or_default();
+            if !new_val.is_empty() {
+                new_val.push(";");
+            }
+            new_val.push(existing_path);
+            std::env::set_var(env_var_name, new_val);
+        } else {
+            std::env::set_var(env_var_name, existing_path);
+        }
 
         let mut cmd = Command::new("echo");
-        super::configure_library_path_impl(&mut cmd, &[])
-            .expect("Failed to configure library path");
+        let result = super::configure_library_path_impl(&mut cmd, &[]);
+
+        // Clean up
+        if let Some(val) = original_val {
+            std::env::set_var(env_var_name, val);
+        } else {
+            std::env::remove_var(env_var_name);
+        }
+
+        result.expect("Failed to configure library path");
 
         // get_envs() returns explicitly set environment variables on the command
         // We need to check if the value was set
@@ -781,9 +803,6 @@ version = "0.1.0"
             existing_path,
             env_value
         );
-
-        // Clean up
-        std::env::remove_var(env_var_name);
     }
 
     #[test]
