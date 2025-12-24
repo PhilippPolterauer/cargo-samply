@@ -499,7 +499,13 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
 
     #[test]
     fn test_ensure_samply_profile_adds_profile() {
@@ -646,6 +652,7 @@ version = "0.1.0"
 
     #[test]
     fn test_configure_library_path_sets_env_var() {
+        let _env_guard = env_lock();
         // Test that configure_library_path sets the appropriate environment variable
         let mut cmd = Command::new("echo");
         
@@ -688,6 +695,7 @@ version = "0.1.0"
 
     #[test]
     fn test_configure_library_path_preserves_existing_path() {
+        let _env_guard = env_lock();
         // Test that configure_library_path preserves existing paths
         let env_var_name = if cfg!(target_os = "macos") {
             "DYLD_LIBRARY_PATH"
@@ -733,6 +741,7 @@ version = "0.1.0"
 
     #[test]
     fn test_configure_library_path_can_be_disabled() {
+        let _env_guard = env_lock();
         // Test that sysroot injection can be disabled via environment variable
         std::env::set_var("CARGO_SAMPLY_NO_SYSROOT_INJECTION", "1");
         
