@@ -425,8 +425,9 @@ pub fn configure_library_path(cmd: &mut Command) -> error::Result<()> {
     };
     
     // Get the current value of the environment variable, if any
+    // Use to_string_lossy to handle non-UTF-8 paths gracefully
     let current_val = std::env::var_os(env_var_name)
-        .and_then(|s| s.into_string().ok())
+        .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
     
     // Prepend the sysroot lib path to the current value
