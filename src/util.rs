@@ -703,11 +703,21 @@ version = "0.1.0"
         let mut cmd = Command::new("echo");
         configure_library_path(&mut cmd).expect("Failed to configure library path");
         
-        let env_vars: std::collections::HashMap<_, _> = cmd.get_envs()
-            .filter_map(|(k, v)| v.map(|v| (k.to_string_lossy().to_string(), v.to_string_lossy().to_string())))
-            .collect();
+        // get_envs() returns explicitly set environment variables on the command
+        // We need to check if the value was set
+        let mut found = false;
+        let mut env_value = String::new();
+        for (key, value) in cmd.get_envs() {
+            if key.to_string_lossy() == env_var_name {
+                if let Some(v) = value {
+                    found = true;
+                    env_value = v.to_string_lossy().to_string();
+                    break;
+                }
+            }
+        }
         
-        let env_value = env_vars.get(env_var_name).expect("Env var should exist");
+        assert!(found, "Environment variable {} should be set on command", env_var_name);
         
         // Verify existing path is preserved
         assert!(

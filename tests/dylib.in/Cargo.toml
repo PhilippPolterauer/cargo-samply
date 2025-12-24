@@ -16,3 +16,6 @@ opt-level = 2
 [profile.samply]
 inherits = "release"
 debug = true
+# Note: Dynamic linking is forced via .cargo/config.toml which applies
+# rustflags = ["-C", "prefer-dynamic"] to all profiles including samply
+
