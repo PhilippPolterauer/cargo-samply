@@ -235,6 +235,24 @@ fn configure_samply_command(
     }
 }
 
+/// Converts a vector of features into a comma-separated string.
+///
+/// # Arguments
+///
+/// * `features` - Vector of feature names
+///
+/// # Returns
+///
+/// - `Some(String)` - Comma-separated features if non-empty
+/// - `None` - If the features vector is empty
+fn features_to_string(features: &[String]) -> Option<String> {
+    if !features.is_empty() {
+        Some(features.join(","))
+    } else {
+        None
+    }
+}
+
 /// Entry point for the cargo-samply application.
 ///
 /// Initializes error handling and calls the main run function.
@@ -305,11 +323,7 @@ fn run() -> error::Result<()> {
     let target = determine_target(&cli, &cargo_toml)?;
     let bench_requires_flag = matches!(target.kind, TargetKind::Bench);
 
-    let features_str = if !cli.features.is_empty() {
-        Some(cli.features.join(","))
-    } else {
-        None
-    };
+    let features_str = features_to_string(&cli.features);
 
     // Always rebuild the requested target via `cargo build` so the binary exists
     // before profiling. Bench flow is only validated with the Criterion harness
@@ -370,28 +384,29 @@ mod tests {
     use super::*;
     use std::{ffi::OsString, path::Path};
 
-    #[test]
-    fn test_multiple_features_handling() {
-        // Test multiple features passed as separate flags
-        let cli = crate::cli::Config {
+    /// Helper function to create a test Config with default values.
+    /// Only the features field needs to be specified; all other fields
+    /// use sensible defaults for testing.
+    fn test_config(features: Vec<String>) -> crate::cli::Config {
+        crate::cli::Config {
             args: vec![],
             profile: "samply".to_string(),
             bin: Some("test".to_string()),
             example: None,
             bench: None,
-            features: vec!["feature1".to_string(), "feature2".to_string()],
+            features,
             no_default_features: false,
             verbose: false,
             quiet: false,
             no_samply: false,
-        };
+        }
+    }
 
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
+    #[test]
+    fn test_multiple_features_handling() {
+        // Test multiple features passed as separate flags
+        let cli = test_config(vec!["feature1".to_string(), "feature2".to_string()]);
+        let features_str = features_to_string(&cli.features);
         assert_eq!(features_str, Some("feature1,feature2".to_string()));
     }
 
@@ -431,50 +446,16 @@ mod tests {
     #[test]
     fn test_single_feature_handling() {
         // Test single feature
-        let cli = crate::cli::Config {
-            args: vec![],
-            profile: "samply".to_string(),
-            bin: Some("test".to_string()),
-            example: None,
-            bench: None,
-            features: vec!["feature1".to_string()],
-            no_default_features: false,
-            verbose: false,
-            quiet: false,
-            no_samply: false,
-        };
-
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
+        let cli = test_config(vec!["feature1".to_string()]);
+        let features_str = features_to_string(&cli.features);
         assert_eq!(features_str, Some("feature1".to_string()));
     }
 
     #[test]
     fn test_no_features_handling() {
         // Test no features
-        let cli = crate::cli::Config {
-            args: vec![],
-            profile: "samply".to_string(),
-            bin: Some("test".to_string()),
-            example: None,
-            bench: None,
-            features: vec![],
-            no_default_features: false,
-            verbose: false,
-            quiet: false,
-            no_samply: false,
-        };
-
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
+        let cli = test_config(vec![]);
+        let features_str = features_to_string(&cli.features);
         assert_eq!(features_str, None);
     }
 

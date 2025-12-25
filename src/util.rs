@@ -22,6 +22,7 @@
 //! ```
 
 use std::{
+    collections::HashSet,
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
@@ -150,27 +151,25 @@ pub fn get_workspace_metadata_from(cargo_toml: &Path) -> error::Result<Workspace
         .exec()
         .map_err(|e| error::Error::Io(std::io::Error::other(e)))?;
 
-    let mut binaries = Vec::new();
-    let mut examples = Vec::new();
-    let mut benches = Vec::new();
+    let mut binaries_set = HashSet::new();
+    let mut examples_set = HashSet::new();
+    let mut benches_set = HashSet::new();
 
     for package in metadata.packages {
         for target in package.targets {
             if target.is_bin() {
-                if !binaries.contains(&target.name) {
-                    binaries.push(target.name);
-                }
+                binaries_set.insert(target.name);
             } else if target.is_example() {
-                if !examples.contains(&target.name) {
-                    examples.push(target.name);
-                }
-            } else if target.kind.contains(&cargo_metadata::TargetKind::Bench)
-                && !benches.contains(&target.name)
-            {
-                benches.push(target.name);
+                examples_set.insert(target.name);
+            } else if target.kind.contains(&cargo_metadata::TargetKind::Bench) {
+                benches_set.insert(target.name);
             }
         }
     }
+
+    let mut binaries: Vec<String> = binaries_set.into_iter().collect();
+    let mut examples: Vec<String> = examples_set.into_iter().collect();
+    let mut benches: Vec<String> = benches_set.into_iter().collect();
 
     binaries.sort();
     examples.sort();
@@ -297,22 +296,33 @@ pub fn guess_bin(cargo_toml: &Path) -> error::Result<String> {
     create_suggestions_error(workspace_metadata.binaries, workspace_metadata.examples)
 }
 
+/// Helper function to add suggestions for a list of targets.
+///
+/// # Arguments
+///
+/// * `suggestions` - Mutable vector to append suggestions to
+/// * `targets` - List of target names
+/// * `target_type` - Type of target (e.g., "binaries", "examples")
+/// * `flag` - Command-line flag to use (e.g., "--bin", "--example")
+fn add_target_suggestions(
+    suggestions: &mut Vec<String>,
+    targets: &[String],
+    target_type: &str,
+    flag: &str,
+) {
+    if !targets.is_empty() {
+        suggestions.push(format!("\n\nAvailable {}:", target_type));
+        for target in targets {
+            suggestions.push(format!("  {}: cargo samply {} {}", target, flag, target));
+        }
+    }
+}
+
 fn create_suggestions_error(binaries: Vec<String>, examples: Vec<String>) -> error::Result<String> {
     let mut suggestions = Vec::new();
 
-    if !binaries.is_empty() {
-        suggestions.push("\n\nAvailable binaries:".to_string());
-        for bin in &binaries {
-            suggestions.push(format!("  {}: cargo samply --bin {}", bin, bin));
-        }
-    }
-
-    if !examples.is_empty() {
-        suggestions.push("\n\nAvailable examples:".to_string());
-        for example in &examples {
-            suggestions.push(format!("  {}: cargo samply --example {}", example, example));
-        }
-    }
+    add_target_suggestions(&mut suggestions, &binaries, "binaries", "--bin");
+    add_target_suggestions(&mut suggestions, &examples, "examples", "--example");
 
     let suggestions_text = suggestions.join("\n");
 
