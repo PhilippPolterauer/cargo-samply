@@ -22,17 +22,42 @@ use cargo_metadata::{Message, TargetKind as CargoTargetKind};
 use clap::Parser;
 
 use crate::util::{
-    configure_library_path_for_binary, ensure_samply_profile, guess_bin, locate_project,
-    resolve_bench_target_name, CommandExt,
+    calculate_library_path, configure_library_path_for_binary, ensure_samply_profile,
+    get_all_targets, guess_bin, has_samply_profile, locate_project, resolve_bench_target_name,
+    CommandExt, WorkspaceMetadata,
 };
 
 const SAMPLY_OVERRIDE_ENV: &str = "CARGO_SAMPLY_SAMPLY_PATH";
+
+#[derive(Debug)]
+struct BuildPlan {
+    cargo_args: Vec<String>,
+}
+
+#[derive(Debug)]
+struct RunPlan {
+    bin_path: PathBuf,
+    args: Vec<String>,
+    env_vars: Vec<(String, String)>,
+    is_samply: bool,
+    samply_program: String,
+    samply_args: Vec<String>,
+    re_resolve_context: Option<(PathBuf, String, Target)>,
+}
+
+#[derive(Debug)]
+struct ExecutionPlan {
+    build: Option<BuildPlan>,
+    run: RunPlan,
+    warnings: Vec<String>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TargetKind {
     Bin,
     Example,
     Bench,
+    Test,
 }
 
 impl TargetKind {
@@ -41,6 +66,7 @@ impl TargetKind {
             TargetKind::Bin => "--bin",
             TargetKind::Example => "--example",
             TargetKind::Bench => "--bench",
+            TargetKind::Test => "--test",
         }
     }
 }
@@ -58,22 +84,12 @@ impl Target {
 }
 
 /// Constructs the path to the built binary based on profile and binary type.
-///
-/// # Arguments
-///
-/// * `root` - Project root directory
-/// * `profile` - Build profile (e.g., "debug", "release", "samply")
-/// * `bin_opt` - Binary option ("--bin" or "--example")
-/// * `bin_name` - Name of the binary or example
-///
-/// # Returns
-///
-/// Path to the built binary in the target directory
 fn get_bin_path(
     root: &std::path::Path,
     profile: &str,
     bin_opt: &str,
     bin_name: &str,
+    is_windows: bool,
 ) -> std::path::PathBuf {
     let path = if bin_opt == "--bin" {
         root.join("target").join(profile).join(bin_name)
@@ -84,21 +100,13 @@ fn get_bin_path(
             .join(bin_name)
     };
 
-    // On Windows, built executables have the `.exe` extension. Append it
-    // when running on that platform to make existence checks and command
-    // invocation work correctly.
-    #[cfg(windows)]
-    {
+    if is_windows {
         let mut path = path;
-        {
-            if path.extension().is_none() {
-                path.set_extension("exe");
-            }
+        if path.extension().is_none() {
+            path.set_extension("exe");
         }
         path
-    }
-    #[cfg(not(windows))]
-    {
+    } else {
         path
     }
 }
@@ -114,39 +122,49 @@ fn resolve_target_path(
             profile,
             TargetKind::Bin.cargo_flag(),
             &target.name,
+            cfg!(windows),
         )),
         TargetKind::Example => Ok(get_bin_path(
             root,
             profile,
             TargetKind::Example.cargo_flag(),
             &target.name,
+            cfg!(windows),
         )),
-        TargetKind::Bench => get_bench_path(root, profile, &target.name),
+        TargetKind::Bench | TargetKind::Test => get_bench_path(root, profile, &target.name),
     }
 }
 
 fn determine_target(
     cli: &crate::cli::Config,
     cargo_toml: &std::path::Path,
-) -> error::Result<Target> {
-    let specified =
-        cli.bin.is_some() as u8 + cli.example.is_some() as u8 + cli.bench.is_some() as u8;
+) -> error::Result<(Target, WorkspaceMetadata)> {
+    let specified = cli.bin.is_some() as u8
+        + cli.example.is_some() as u8
+        + cli.bench.is_some() as u8
+        + cli.test.is_some() as u8;
     if specified > 1 {
         return Err(error::Error::MultipleTargetsFlagsSpecified);
     }
 
+    let metadata = get_all_targets(cargo_toml, cli.package.as_deref())?;
+
     if let Some(bin) = &cli.bin {
-        return Ok(Target::new(TargetKind::Bin, bin.clone()));
+        return Ok((Target::new(TargetKind::Bin, bin.clone()), metadata));
     }
     if let Some(example) = &cli.example {
-        return Ok(Target::new(TargetKind::Example, example.clone()));
+        return Ok((Target::new(TargetKind::Example, example.clone()), metadata));
     }
     if let Some(bench) = &cli.bench {
-        let resolved = resolve_bench_target_name(cargo_toml, bench)?;
-        return Ok(Target::new(TargetKind::Bench, resolved));
+        let resolved = resolve_bench_target_name(cargo_toml, bench, cli.package.as_deref())?;
+        return Ok((Target::new(TargetKind::Bench, resolved), metadata));
+    }
+    if let Some(test) = &cli.test {
+        return Ok((Target::new(TargetKind::Test, test.clone()), metadata));
     }
 
-    Ok(Target::new(TargetKind::Bin, guess_bin(cargo_toml)?))
+    let bin = guess_bin(cargo_toml, &metadata)?;
+    Ok((Target::new(TargetKind::Bin, bin), metadata))
 }
 
 fn get_bench_path(
@@ -216,51 +234,40 @@ fn is_executable_artifact(path: &std::path::Path) -> bool {
     }
 }
 
-fn prepare_runtime_args(bench_requires_flag: bool, trailing_args: Vec<String>) -> Vec<String> {
+fn prepare_runtime_args(bench_flag: Option<&str>, trailing_args: Vec<String>) -> Vec<String> {
     let mut args = Vec::new();
-    if bench_requires_flag {
-        // `cargo bench` only injects the `--bench` flag without repeating the
-        // target name; mirror that so Criterion harnesses keep their defaults.
-        args.push("--bench".to_string());
+    if let Some(flag) = bench_flag {
+        args.push(flag.to_string());
     }
     args.extend(trailing_args);
     args
 }
 
-/// Configures a samply command with the binary path, runtime arguments, and library path.
-///
-/// This function sets up the command to run `samply record` with the target binary,
-/// and configures the library path environment variable to ensure the binary can
-/// find dynamically linked Rust libraries.
-///
-/// # Arguments
-///
-/// * `cmd` - The samply command to configure
-/// * `bin_path` - Path to the target binary
-/// * `runtime_args` - Arguments to pass to the target binary
-///
-/// # Returns
-///
-/// - `Ok(())` - Command was successfully configured
-/// - `Err(Error)` - If library path configuration fails
 fn configure_samply_command(
     cmd: &mut Command,
     bin_path: &std::path::Path,
     runtime_args: &[String],
+    samply_args: &[String],
     profile: &str,
 ) -> error::Result<()> {
-    cmd.arg("record").arg("--").arg(bin_path);
+    cmd.arg("record");
+    cmd.args(samply_args);
+    cmd.arg("--").arg(bin_path);
     if !runtime_args.is_empty() {
         cmd.args(runtime_args);
     }
-    // Configure library path so the target binary can find Rust/toolchain and target deps dylibs
     configure_library_path_for_binary(cmd, bin_path, profile)?;
     Ok(())
 }
 
-/// Entry point for the cargo-samply application.
-///
-/// Initializes error handling and calls the main run function.
+fn features_to_string(features: &[String]) -> Option<String> {
+    if !features.is_empty() {
+        Some(features.join(","))
+    } else {
+        None
+    }
+}
+
 fn main() {
     if let Err(err) = run() {
         error!("{}", err);
@@ -268,31 +275,11 @@ fn main() {
     }
 }
 
-/// Main application logic for cargo-samply.
-///
-/// This function orchestrates the entire process:
-/// 1. Parse command-line arguments
-/// 2. Set up logging
-/// 3. Validate arguments
-/// 4. Locate the cargo project
-/// 5. Ensure the samply profile exists
-/// 6. Determine which binary to run (bench flow tested only with Criterion harnesses)
-/// 7. Build the project
-/// 8. Run samply or the binary directly
-///
-/// # Returns
-///
-/// - `Ok(())` - Operation completed successfully
-/// - `Err(Error)` - Various errors can occur during the process
 fn run() -> error::Result<()> {
-    // Handle both direct execution and cargo subcommand
     let args: Vec<String> = std::env::args().collect();
     let cli = if args.len() > 1 && args[1] == "samply" {
-        // Called via cargo: cargo samply [args...]
         crate::cli::CargoCli::parse()
     } else {
-        // Called directly: cargo-samply [args...]
-        // Parse as if "samply" was the first argument
         let mut modified_args = vec!["cargo".to_string(), "samply".to_string()];
         modified_args.extend(args.into_iter().skip(1));
         crate::cli::CargoCli::try_parse_from(modified_args).unwrap_or_else(|e| e.exit())
@@ -308,113 +295,291 @@ fn run() -> error::Result<()> {
     };
     ocli::init(log_level)?;
 
-    // check if cargo.toml exists
-    // check project path using locate-project
-    let cargo_toml = locate_project()?;
-    debug!("cargo.toml: {:?}", cargo_toml);
+    let local_cargo_toml = locate_project()?;
+    debug!("local cargo.toml: {:?}", local_cargo_toml);
 
-    // check if profile exists
-    // if not add profile
-    // if yes print warning
-    if cli.profile == "samply" {
-        ensure_samply_profile(&cargo_toml)?;
+    if cli.list_targets {
+        let targets = get_all_targets(&local_cargo_toml, cli.package.as_deref())?;
+        if !targets.binaries.is_empty() {
+            println!("Binaries:");
+            for bin in targets.binaries {
+                println!("  {}", bin);
+            }
+        }
+        if !targets.examples.is_empty() {
+            println!("Examples:");
+            for example in targets.examples {
+                println!("  {}", example);
+            }
+        }
+        if !targets.benches.is_empty() {
+            println!("Benches:");
+            for bench in targets.benches {
+                println!("  {}", bench);
+            }
+        }
+        if !targets.tests.is_empty() {
+            println!("Tests:");
+            for test in targets.tests {
+                println!("  {}", test);
+            }
+        }
+        return Ok(());
     }
 
-    let target = determine_target(&cli, &cargo_toml)?;
-    let bench_requires_flag = matches!(target.kind, TargetKind::Bench);
+    let plan = generate_plan(&mut cli, &local_cargo_toml)?;
 
-    let features_str = if !cli.features.is_empty() {
-        Some(cli.features.join(","))
+    if cli.dry_run {
+        print_plan(&plan);
+    } else {
+        execute_plan(plan, &cli.profile, &local_cargo_toml)?;
+    }
+
+    Ok(())
+}
+
+fn generate_plan(
+    cli: &mut crate::cli::Config,
+    cargo_toml: &std::path::Path,
+) -> error::Result<ExecutionPlan> {
+    let mut warnings = Vec::new();
+
+    let samply_program =
+        std::env::var(SAMPLY_OVERRIDE_ENV).unwrap_or_else(|_| "samply".to_string());
+
+    if !cli.no_samply && !cli.dry_run && which::which(&samply_program).is_err() {
+        return Err(error::Error::SamplyNotFound);
+    }
+
+    let (target, metadata) = determine_target(cli, cargo_toml)?;
+    let workspace_root = &metadata.workspace_root;
+
+    // Profile injection logic
+    if cli.profile == "samply" {
+        let no_inject_env = std::env::var("CARGO_SAMPLY_NO_PROFILE_INJECT").is_ok();
+        let should_inject = !cli.no_profile_inject && !no_inject_env;
+
+        if should_inject {
+            if !cli.dry_run {
+                // In a workspace, ensure the profile is in the workspace root
+                let workspace_cargo_toml = workspace_root.join("Cargo.toml");
+                ensure_samply_profile(&workspace_cargo_toml)?;
+            }
+        } else {
+            let workspace_cargo_toml = workspace_root.join("Cargo.toml");
+            if !has_samply_profile(&workspace_cargo_toml)? {
+                warnings.push("Warning: Profile 'samply' is missing in Cargo.toml and injection is disabled. Profiling might fail or lack symbols.".to_string());
+            }
+        }
+    }
+
+    let features_str = features_to_string(&cli.features);
+
+    let mut cargo_args = vec![
+        "build".to_string(),
+        "--message-format=json-diagnostic-rendered-ansi".to_string(),
+        "--profile".to_string(),
+        cli.profile.clone(),
+    ];
+
+    if let Some(package) = &cli.package {
+        cargo_args.push("--package".to_string());
+        cargo_args.push(package.clone());
+    }
+
+    cargo_args.push(target.kind.cargo_flag().to_string());
+    cargo_args.push(target.name.clone());
+
+    if let Some(ref features) = features_str {
+        cargo_args.push("--features".to_string());
+        cargo_args.push(features.clone());
+    }
+    if cli.no_default_features {
+        cargo_args.push("--no-default-features".to_string());
+    }
+
+    let build_plan = BuildPlan { cargo_args };
+
+    // Run Plan
+    let (bin_path, re_resolve_context) =
+        match resolve_target_path(workspace_root, &cli.profile, &target) {
+            Ok(p) => (p, None),
+            Err(error::Error::BinaryNotFound { path }) => (
+                path,
+                Some((workspace_root.clone(), cli.profile.clone(), target.clone())),
+            ),
+            Err(e) => return Err(e),
+        };
+
+    let bench_flag = if matches!(target.kind, TargetKind::Bench) {
+        if cli.bench_flag == "none" {
+            None
+        } else {
+            Some(cli.bench_flag.as_str())
+        }
     } else {
         None
     };
 
-    // Always rebuild the requested target via `cargo build` so the binary exists
-    // before profiling. Bench flow is only validated with the Criterion harness
-    // (matching what `cargo bench --no-run` would do).
-    let mut args = vec![
-        "build",
-        "--message-format=json-diagnostic-rendered-ansi",
-        "--profile",
-        &cli.profile,
-        target.kind.cargo_flag(),
-        &target.name,
-    ];
-    if let Some(ref features) = features_str {
-        args.push("--features");
-        args.push(features);
-    }
-    if cli.no_default_features {
-        args.push("--no-default-features");
+    let runtime_args = prepare_runtime_args(bench_flag, mem::take(&mut cli.args));
+
+    let env_vars_opt = calculate_library_path(&bin_path, &cli.profile)?;
+    let mut env_vars = Vec::new();
+    if let Some((k, v)) = env_vars_opt {
+        env_vars.push((k, v));
     }
 
-    let mut cmd = Command::new("cargo");
-    cmd.args(args);
-    cmd.stdout(Stdio::piped());
+    let samply_args = cli
+        .samply_args
+        .as_ref()
+        .map(|s| shell_words::split(s))
+        .transpose()
+        .map_err(|e| {
+            error::Error::Io(std::io::Error::other(format!("Invalid samply-args: {}", e)))
+        })?
+        .unwrap_or_default();
 
-    debug!(
-        "running {:?} with args: {:?}",
-        cmd.get_program(),
-        cmd.get_args().collect::<Vec<_>>()
-    );
+    let run_plan = RunPlan {
+        bin_path,
+        args: runtime_args,
+        env_vars,
+        is_samply: !cli.no_samply,
+        samply_program,
+        samply_args,
+        re_resolve_context,
+    };
 
-    let mut child = cmd.spawn()?;
-    let stdout = child.stdout.take().unwrap();
-    let reader = BufReader::new(stdout);
-    let mut bin_path: Option<PathBuf> = None;
+    Ok(ExecutionPlan {
+        build: Some(build_plan),
+        run: run_plan,
+        warnings,
+    })
+}
 
-    for message in Message::parse_stream(reader) {
-        match message? {
-            Message::CompilerMessage(msg) => {
-                if let Some(rendered) = msg.message.rendered {
-                    eprint!("{}", rendered);
-                }
-            }
-            Message::CompilerArtifact(artifact) => {
-                if artifact.target.name == target.name
-                    && artifact.target.kind.iter().any(|k| {
-                        k == &CargoTargetKind::Bin
-                            || k == &CargoTargetKind::Example
-                            || k == &CargoTargetKind::Bench
-                            || k == &CargoTargetKind::Test
-                    })
-                {
-                    if let Some(path) = artifact.executable {
-                        bin_path = Some(path.into());
+fn print_plan(plan: &ExecutionPlan) {
+    for w in &plan.warnings {
+        eprintln!("{}", w);
+    }
+
+    if let Some(build) = &plan.build {
+        let quoted_args: Vec<String> = build
+            .cargo_args
+            .iter()
+            .map(|s| shell_words::quote(s).into_owned())
+            .collect();
+        println!("cargo {}", quoted_args.join(" "));
+    }
+
+    let run = &plan.run;
+    let mut cmd_parts = Vec::new();
+
+    for (k, v) in &run.env_vars {
+        cmd_parts.push(format!("{}={}", k, shell_words::quote(v)));
+    }
+
+    if run.is_samply {
+        cmd_parts.push(shell_words::quote(&run.samply_program).into_owned());
+        cmd_parts.push("record".to_string());
+        for arg in &run.samply_args {
+            cmd_parts.push(shell_words::quote(arg).into_owned());
+        }
+        cmd_parts.push("--".to_string());
+    }
+
+    cmd_parts.push(shell_words::quote(&run.bin_path.display().to_string()).into_owned());
+
+    for arg in &run.args {
+        cmd_parts.push(shell_words::quote(arg).into_owned());
+    }
+
+    println!("{}", cmd_parts.join(" "));
+}
+
+fn execute_plan(
+    plan: ExecutionPlan,
+    profile: &str,
+    _cargo_toml: &std::path::Path,
+) -> error::Result<()> {
+    for w in &plan.warnings {
+        eprintln!("{}", w);
+    }
+
+    let mut bin_path_from_build: Option<PathBuf> = None;
+    let target_name = plan
+        .run
+        .re_resolve_context
+        .as_ref()
+        .map(|(_, _, t)| t.name.clone());
+
+    if let Some(build) = plan.build {
+        let mut cmd = Command::new("cargo");
+        cmd.args(&build.cargo_args);
+        cmd.stdout(Stdio::piped());
+
+        debug!(
+            "running {:?} with args: {:?}",
+            cmd.get_program(),
+            cmd.get_args().collect::<Vec<_>>()
+        );
+
+        let mut child = cmd.spawn()?;
+        let stdout = child.stdout.take().unwrap();
+        let reader = BufReader::new(stdout);
+
+        for message in Message::parse_stream(reader) {
+            match message? {
+                Message::CompilerMessage(msg) => {
+                    if let Some(rendered) = msg.message.rendered {
+                        eprint!("{}", rendered);
                     }
                 }
+                Message::CompilerArtifact(artifact) => {
+                    if let Some(name) = &target_name {
+                        if &artifact.target.name == name
+                            && artifact.target.kind.iter().any(|k| {
+                                k == &CargoTargetKind::Bin
+                                    || k == &CargoTargetKind::Example
+                                    || k == &CargoTargetKind::Bench
+                                    || k == &CargoTargetKind::Test
+                            })
+                        {
+                            if let Some(path) = artifact.executable {
+                                bin_path_from_build = Some(path.into());
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
-            _ => {}
+        }
+
+        let exit_code = child.wait()?;
+        if !exit_code.success() {
+            return Err(error::Error::CargoBuildFailed);
         }
     }
 
-    let exit_code = child.wait()?;
-    if !exit_code.success() {
-        return Err(error::Error::CargoBuildFailed);
-    }
-
-    // run samply on the binary
-    // if it fails print error
-    let root = cargo_toml.parent().unwrap();
-    // Locate the freshly built artifact inside `target/<profile>/...`. Bench
-    // locations (deps dir) have only been tested with Criterion harness output.
-    let bin_path = if let Some(path) = bin_path {
+    let bin_path = if let Some(path) = bin_path_from_build {
         path
+    } else if let Some((root, profile, target)) = plan.run.re_resolve_context {
+        resolve_target_path(&root, &profile, &target)?
     } else {
-        resolve_target_path(root, &cli.profile, &target)?
+        plan.run.bin_path
     };
 
     if !bin_path.exists() {
         return Err(error::Error::BinaryNotFound { path: bin_path });
     }
 
-    let runtime_args = prepare_runtime_args(bench_requires_flag, mem::take(&mut cli.args));
-
-    if !cli.no_samply {
-        let samply_program =
-            std::env::var(SAMPLY_OVERRIDE_ENV).unwrap_or_else(|_| "samply".to_string());
-        let mut samply_cmd = Command::new(&samply_program);
-        configure_samply_command(&mut samply_cmd, &bin_path, &runtime_args, &cli.profile)?;
+    if plan.run.is_samply {
+        let mut samply_cmd = Command::new(&plan.run.samply_program);
+        configure_samply_command(
+            &mut samply_cmd,
+            &bin_path,
+            &plan.run.args,
+            &plan.run.samply_args,
+            profile,
+        )?;
         match samply_cmd.call() {
             Ok(_) => {}
             Err(error::Error::Io(io_err)) if io_err.kind() == io::ErrorKind::NotFound => {
@@ -424,8 +589,8 @@ fn run() -> error::Result<()> {
         }
     } else {
         let mut cmd = Command::new(&bin_path);
-        cmd.args(&runtime_args);
-        configure_library_path_for_binary(&mut cmd, &bin_path, &cli.profile)?;
+        cmd.args(&plan.run.args);
+        configure_library_path_for_binary(&mut cmd, &bin_path, profile)?;
         cmd.call()?;
     }
 
@@ -437,37 +602,61 @@ mod tests {
     use super::*;
     use std::{ffi::OsString, path::Path};
 
-    #[test]
-    fn test_multiple_features_handling() {
-        // Test multiple features passed as separate flags
-        let cli = crate::cli::Config {
+    fn test_config(features: Vec<String>) -> crate::cli::Config {
+        crate::cli::Config {
             args: vec![],
             profile: "samply".to_string(),
+            package: None,
             bin: Some("test".to_string()),
             example: None,
             bench: None,
-            features: vec!["feature1".to_string(), "feature2".to_string()],
+            test: None,
+            features,
             no_default_features: false,
             verbose: false,
             quiet: false,
             no_samply: false,
-        };
+            dry_run: false,
+            no_profile_inject: false,
+            bench_flag: "--bench".to_string(),
+            samply_args: None,
+            list_targets: false,
+        }
+    }
 
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
+    #[test]
+    fn test_multiple_features_handling() {
+        let cli = test_config(vec!["feature1".to_string(), "feature2".to_string()]);
+        let features_str = features_to_string(&cli.features);
         assert_eq!(features_str, Some("feature1,feature2".to_string()));
+    }
+
+    #[test]
+    fn test_single_feature_handling() {
+        let cli = test_config(vec!["feature1".to_string()]);
+        let features_str = features_to_string(&cli.features);
+        assert_eq!(features_str, Some("feature1".to_string()));
+    }
+
+    #[test]
+    fn test_no_features_handling() {
+        let cli = test_config(vec![]);
+        let features_str = features_to_string(&cli.features);
+        assert_eq!(features_str, None);
     }
 
     #[test]
     fn samply_command_places_binary_before_separator() {
         let mut cmd = Command::new("samply");
         let runtime_args = vec!["--bench".to_string(), "throughput".to_string()];
-        configure_samply_command(&mut cmd, Path::new("target/bin"), &runtime_args, "samply")
-            .unwrap();
+        configure_samply_command(
+            &mut cmd,
+            Path::new("target/bin"),
+            &runtime_args,
+            &[],
+            "samply",
+        )
+        .unwrap();
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
         let expected = vec![
@@ -484,7 +673,7 @@ mod tests {
     #[test]
     fn samply_command_inserts_separator_even_without_runtime_args() {
         let mut cmd = Command::new("samply");
-        configure_samply_command(&mut cmd, Path::new("target/bin"), &[], "samply").unwrap();
+        configure_samply_command(&mut cmd, Path::new("target/bin"), &[], &[], "samply").unwrap();
         let args: Vec<OsString> = cmd.get_args().map(|arg| arg.to_os_string()).collect();
 
         let expected = vec![
@@ -494,91 +683,5 @@ mod tests {
         ];
 
         assert_eq!(args, expected);
-    }
-
-    #[test]
-    fn test_single_feature_handling() {
-        // Test single feature
-        let cli = crate::cli::Config {
-            args: vec![],
-            profile: "samply".to_string(),
-            bin: Some("test".to_string()),
-            example: None,
-            bench: None,
-            features: vec!["feature1".to_string()],
-            no_default_features: false,
-            verbose: false,
-            quiet: false,
-            no_samply: false,
-        };
-
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
-        assert_eq!(features_str, Some("feature1".to_string()));
-    }
-
-    #[test]
-    fn test_no_features_handling() {
-        // Test no features
-        let cli = crate::cli::Config {
-            args: vec![],
-            profile: "samply".to_string(),
-            bin: Some("test".to_string()),
-            example: None,
-            bench: None,
-            features: vec![],
-            no_default_features: false,
-            verbose: false,
-            quiet: false,
-            no_samply: false,
-        };
-
-        let features_str = if !cli.features.is_empty() {
-            Some(cli.features.join(","))
-        } else {
-            None
-        };
-
-        assert_eq!(features_str, None);
-    }
-
-    #[test]
-    fn test_get_bin_path_bin() {
-        let root = std::path::Path::new("/project");
-        let path = get_bin_path(root, "release", "--bin", "mybin");
-        let expected = if cfg!(windows) {
-            std::path::Path::new("/project/target/release/mybin.exe")
-        } else {
-            std::path::Path::new("/project/target/release/mybin")
-        };
-        assert_eq!(path, expected);
-    }
-
-    #[test]
-    fn test_get_bin_path_example() {
-        let root = std::path::Path::new("/project");
-        let path = get_bin_path(root, "debug", "--example", "myexample");
-        let expected = if cfg!(windows) {
-            std::path::Path::new("/project/target/debug/examples/myexample.exe")
-        } else {
-            std::path::Path::new("/project/target/debug/examples/myexample")
-        };
-        assert_eq!(path, expected);
-    }
-
-    #[test]
-    fn test_prepare_runtime_args_injects_bench_flag() {
-        let args = prepare_runtime_args(true, vec!["--foo".to_string()]);
-        assert_eq!(args, vec!["--bench".to_string(), "--foo".to_string()]);
-    }
-
-    #[test]
-    fn test_prepare_runtime_args_passthrough_for_non_bench() {
-        let args = prepare_runtime_args(false, vec!["--foo".to_string()]);
-        assert_eq!(args, vec!["--foo".to_string()]);
     }
 }

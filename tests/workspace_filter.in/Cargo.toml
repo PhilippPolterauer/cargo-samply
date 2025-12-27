@@ -1,0 +1,6 @@
+[workspace]
+members = ["pkg-a", "pkg-b"]
+
+[profile.samply]
+inherits = "release"
+debug = true

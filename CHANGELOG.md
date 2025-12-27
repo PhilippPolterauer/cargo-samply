@@ -5,15 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Date
-
 ## [0.4.0] - 2025-12-24
 
 ### Added
 
+- `--test <NAME>` flag to profile integration tests and test binaries.
+- `--samply-args <ARGS>` flag to pass arguments directly to `samply` (e.g., `--samply-args "--rate 2000"`).
+- `-p, --package <PKG>` flag to select a package in a workspace (aligns with standard Cargo conventions).
+- Proactive `samply` installation check before starting the build, providing earlier feedback if `samply` is missing.
+- Test targets are now discoverable via `--list-targets`.
+- `--dry-run` flag to preview build and run commands without executing them.
+- `--no-profile-inject` flag and `CARGO_SAMPLY_NO_PROFILE_INJECT` environment variable to prevent automatic `Cargo.toml` modification.
+- `--bench-flag <FLAG>` option to customize the flag injected when running benchmark targets (default: `--bench`). Use `--bench-flag=none` to disable injection entirely.
+- `--list-targets` flag to list all available binaries, examples, benchmarks, and tests in the workspace.
 - Support for `CARGO_SAMPLY_NO_SYSROOT_INJECTION` environment variable to disable sysroot injection.
 - New integration test for dynamic linking scenarios in `tests/dylib.in`.
 - Target-specific `rustlib` directory support in library path configuration.
+
+### Changed
+
+- **BREAKING**: The `-p` short flag is now `--package` (matching Cargo conventions). Use `--profile` (no short flag) for build profile selection.
+- Target discovery now uses `cargo metadata` exclusively for authoritative and complete target enumeration, including auto-discovered targets (like `src/bin/*.rs`).
+- `--dry-run` output now uses proper shell quoting (via `shell-words`) and prepends environment variables as `VAR=val`, making the output safe to copy-paste.
+- Updated README with documentation for all new CLI flags and environment variables.
 
 ### Fixed
 
@@ -27,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Internal
 
 - Added thread-safe environment variable testing using a global mutex to prevent flaky test failures in CI.
+- Optimized target discovery by avoiding redundant `cargo metadata` calls during target resolution.
 
 ## [0.3.4] - 2025-12-12
 

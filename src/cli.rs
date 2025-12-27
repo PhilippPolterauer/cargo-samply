@@ -52,14 +52,21 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
 /// let config = Config {
 ///     args: vec!["--help".to_string()],
 ///     profile: "samply".to_string(),
+///     package: None,
 ///     bin: Some("my-binary".to_string()),
 ///     example: None,
 ///     bench: None,
+///     test: None,
 ///     features: vec!["feature1".to_string(), "feature2".to_string()],
 ///     no_default_features: false,
 ///     verbose: false,
 ///     quiet: false,
 ///     no_samply: false,
+///     dry_run: false,
+///     no_profile_inject: false,
+///     bench_flag: "--bench".to_string(),
+///     samply_args: None,
+///     list_targets: false,
 /// };
 /// ```
 #[derive(clap::Args)]
@@ -70,8 +77,12 @@ pub struct Config {
     pub args: Vec<String>,
 
     /// Build with the specified profile
-    #[arg(short, long, default_value = "samply")]
+    #[arg(long, default_value = "samply")]
     pub profile: String,
+
+    /// Package to profile (in a workspace)
+    #[arg(short = 'p', long)]
+    pub package: Option<String>,
 
     /// Binary to run
     #[arg(short, long)]
@@ -84,6 +95,18 @@ pub struct Config {
     /// Benchmark target to run (e.g. `cargo samply --bench throughput`)
     #[arg(long)]
     pub bench: Option<String>,
+
+    /// Test target to run (e.g. `cargo samply --test integration_test`)
+    #[arg(long)]
+    pub test: Option<String>,
+
+    /// The flag to use when running the benchmark target
+    #[arg(long, default_value = "--bench")]
+    pub bench_flag: String,
+
+    /// Arguments to pass to samply (e.g. `--samply-args "--rate 2000"`)
+    #[arg(long)]
+    pub samply_args: Option<String>,
 
     /// Build features to enable
     #[arg(short, long)]
@@ -104,4 +127,16 @@ pub struct Config {
     /// Disable the automatic samply start
     #[arg(short, long, default_value_t = false)]
     pub no_samply: bool,
+
+    /// Print the build and run commands without executing them
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+
+    /// Do not modify Cargo.toml to add the samply profile
+    #[arg(long, default_value_t = false)]
+    pub no_profile_inject: bool,
+
+    /// List all available targets in the workspace and exit
+    #[arg(long, default_value_t = false)]
+    pub list_targets: bool,
 }

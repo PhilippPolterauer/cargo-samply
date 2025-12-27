@@ -12,6 +12,6 @@ Available binaries:
 ```console
 $ cargo-samply samply --no-samply --bin first --bench demo
 ? 1
-error: Target selection flags (--bin, --example, --bench) are mutually exclusive
+error: Target selection flags (--bin, --example, --bench, --test) are mutually exclusive
 
 ```

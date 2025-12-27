@@ -14,13 +14,14 @@ Profile Rust code with `samply`, without remembering the build/run ceremony.
 
 - Builds your project (optionally with a custom Cargo profile)
 - Runs the resulting artifact under the `samply` profiler
-- Supports binaries, examples, and benchmark targets
+- Supports binaries, examples, benchmark, and test targets
 
 ### Why use it?
 
 - **Automated "Profile Ceremony"**: It handles the `[profile.samply]` management for you, ensuring optimized code with debug symbols without manual `Cargo.toml` edits.
-- **Unified Target Selection**: No more hunting for compiled artifacts in `target/release/examples/...`. Just use `--bin`, `--example`, or `--bench`.
+- **Unified Target Selection**: No more hunting for compiled artifacts in `target/release/examples/...`. Just use `--bin`, `--example`, `--bench`, or `--test`.
 - **Smart Benchmark Handling**: Automatically injects the correct runtime flags (like `--bench`) for Criterion-style benchmarks, which are often missed when profiling manually.
+- **Proactive Validation**: Checks for `samply` installation before starting the build, so you find out immediately if something is missing.
 - **Lower Friction**: By making profiling a single command, it encourages frequent performance checks throughout development.
 
 ## Installation
@@ -67,17 +68,24 @@ Arguments:
   [TRAILING_ARGUMENTS]...  Trailing arguments passed to the binary being profiled
 
 Options:
-  -p, --profile <PROFILE>    Build with the specified profile [default: samply]
-  -b, --bin <BIN>            Binary to run
-  -e, --example <EXAMPLE>    Example to run
-      --bench <BENCH>        Benchmark target to run
-  -f, --features <FEATURES>  Build features to enable
-      --no-default-features  Disable default features
-  -v, --verbose              Print extra output to help debug problems
-  -q, --quiet                Suppress all output except errors
-  -n, --no-samply            Disable the automatic samply start
-  -h, --help                 Print help
-  -V, --version              Print version
+      --profile <PROFILE>          Build with the specified profile [default: samply]
+  -p, --package <PACKAGE>          Package to profile (in a workspace)
+  -b, --bin <BIN>                  Binary to run
+  -e, --example <EXAMPLE>          Example to run
+      --bench <BENCH>              Benchmark target to run (e.g. `cargo samply --bench throughput`)
+      --test <TEST>                Test target to run (e.g. `cargo samply --test integration_test`)
+      --bench-flag <BENCH_FLAG>    The flag to use when running the benchmark target [default: --bench]
+      --samply-args <SAMPLY_ARGS>  Arguments to pass to samply (e.g. `--samply-args "--rate 2000"`)
+  -f, --features <FEATURES>        Build features to enable
+      --no-default-features        Disable default features
+  -v, --verbose                    Print extra output to help debug problems
+  -q, --quiet                      Suppress all output except errors
+  -n, --no-samply                  Disable the automatic samply start
+      --dry-run                    Print the build and run commands without executing them
+      --no-profile-inject          Do not modify Cargo.toml to add the samply profile
+      --list-targets               List all available targets in the workspace and exit
+  -h, --help                       Print help
+  -V, --version                    Print version
 ```
 
 ## Common recipes
@@ -95,6 +103,9 @@ cargo samply --example my-example
 # Profile a benchmark (Criterion harness validated)
 cargo samply --bench throughput -- --sample-size 10
 
+# Profile an integration test
+cargo samply --test my_integration_test
+
 # Build using a different profile
 cargo samply --profile release
 
@@ -107,6 +118,9 @@ cargo samply --no-default-features
 # Pass arguments to the program being profiled
 cargo samply -- arg1 arg2 --flag value
 
+# Pass arguments to samply (e.g., set sample rate)
+cargo samply --samply-args "--rate 2000" --bin my-binary
+
 # Run without starting samply (useful for debugging build/target selection)
 cargo samply --no-samply
 ```
@@ -116,6 +130,89 @@ cargo samply --no-samply
 - When you use `--bench <name>`, `cargo-samply` prefixes the runtime invocation with `--bench` (mirroring `cargo bench`).
 - This behavior has been validated with Criterion-driven benches only; other harnesses/runners may require manual adjustments.
 - Benchmark targets must be referenced by their exact Cargo target name (no suffix rewriting or aliasing is performed).
+
+### Notes on tests
+
+- When you use `--test <name>`, `cargo-samply` builds the test binary in test mode and runs it for profiling.
+- This is useful for profiling integration tests or test scenarios that exercise specific code paths.
+
+### Advanced options
+
+#### Profiling tests (`--test`)
+
+Profile integration tests or test binaries:
+
+```bash
+cargo samply --test integration_suite
+```
+
+#### Passing arguments to samply (`--samply-args`)
+
+Pass additional arguments directly to `samply`:
+
+```bash
+# Set sample rate
+cargo samply --samply-args "--rate 2000" --bin my-binary
+
+# Pass multiple samply options
+cargo samply --samply-args "--rate 2000 --save-only profile.json" --bin my-binary
+```
+
+#### Selecting a package in a workspace (`-p, --package`)
+
+In a workspace with multiple packages, specify which package to profile:
+
+```bash
+cargo samply -p my-package --bin my-binary
+```
+
+#### Inspecting planned commands (`--dry-run`)
+
+Use `--dry-run` to preview the build and run commands without executing them:
+
+```bash
+cargo samply --dry-run --bin my-binary
+```
+
+This prints the `cargo build` invocation and the `samply record` command that would be executed, along with any environment variable overrides.
+
+#### Customizing benchmark flags (`--bench-flag`)
+
+By default, benchmark targets are invoked with `--bench` (as Criterion expects). For custom harnesses, you can override this:
+
+```bash
+# Use a custom flag
+cargo samply --bench throughput --bench-flag=--my-custom-flag
+
+# Disable flag injection entirely
+cargo samply --bench throughput --bench-flag=none
+```
+
+#### Listing available targets (`--list-targets`)
+
+To see all available binaries, examples, and benchmarks in the workspace:
+
+```bash
+cargo samply --list-targets
+```
+
+#### Disabling profile injection (`--no-profile-inject`)
+
+By default, `cargo-samply` adds a `[profile.samply]` section to your `Cargo.toml` to ensure optimized builds with debug symbols. To prevent this modification:
+
+```bash
+cargo samply --no-profile-inject
+```
+
+> **Note:** If the profile is missing, the build may fail or produce binaries without debug symbols.
+
+## Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `CARGO_SAMPLY_SAMPLY_PATH` | Override the path to the `samply` binary (default: uses `samply` from `PATH`). |
+| `CARGO_SAMPLY_NO_PROFILE_INJECT` | If set (any non-empty value), prevents modification of `Cargo.toml`. Equivalent to `--no-profile-inject`. |
+| `CARGO_SAMPLY_NO_SYSROOT_INJECTION` | If set, disables automatic injection of Rust sysroot library paths into `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH`. Useful if you manage library paths manually. |
 
 ## Development
 

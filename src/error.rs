@@ -49,8 +49,8 @@ pub enum Error {
     /// Cargo.toml manifest parsing error
     #[error(transparent)]
     TomlManifest(#[from] cargo_toml::Error),
-    /// Target-selection flags (bin/example/bench) are mutually exclusive
-    #[error("Target selection flags (--bin, --example, --bench) are mutually exclusive")]
+    /// Target-selection flags (bin/example/bench/test) are mutually exclusive
+    #[error("Target selection flags (--bin, --example, --bench, --test) are mutually exclusive")]
     MultipleTargetsFlagsSpecified,
     /// Cargo build process failed
     #[error("Build failed")]
@@ -67,6 +67,9 @@ pub enum Error {
     /// Built binary not found in target directory
     #[error("Binary not found: {path}")]
     BinaryNotFound { path: PathBuf },
+    /// Package not found in workspace
+    #[error("Package '{name}' not found in workspace")]
+    PackageNotFound { name: String },
     /// Samply binary not installed or not in PATH
     #[error("samply is not installed or not in PATH")]
     SamplyNotFound,
