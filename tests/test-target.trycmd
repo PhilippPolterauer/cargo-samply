@@ -1,0 +1,17 @@
+```console
+$ cargo-samply samply --test integration_test --dry-run
+cargo build '--message-format=json-diagnostic-rendered-ansi' --profile samply --test integration_test
+[..]record -- [..]target[..]samply[..]deps[..]integration_test[..]
+
+```
+
+```console
+$ cargo-samply samply --test integration_test --no-samply
+
+running 1 test
+test my_test ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in [..]s
+
+
+```

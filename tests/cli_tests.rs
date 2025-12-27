@@ -13,8 +13,10 @@ fn trycmd() {
         .env("CARGO_TERM_QUIET", "true")
         .env(
             "CARGO_SAMPLY_SAMPLY_PATH",
-            fake_samply.to_string_lossy().into_owned(),
+            fake_samply.display().to_string(),
         );
+
+    t.register_bin("fake-samply", fake_samply);
 
     // Load trycmd cases. On Windows we avoid loading cases known to be
     // problematic by not including the `tests/skip-on-windows` folder.

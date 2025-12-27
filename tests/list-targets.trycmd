@@ -1,0 +1,9 @@
+```console
+$ cargo-samply samply --list-targets
+Binaries:
+  cargo-samply
+  fake-samply
+Tests:
+  cli_tests
+
+```

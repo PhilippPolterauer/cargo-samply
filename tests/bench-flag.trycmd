@@ -1,0 +1,30 @@
+```console
+$ cargo-samply samply --no-samply --bench throughput -- alpha beta
+criterion bench sum=10 args=--bench alpha beta
+
+```
+
+```console
+$ cargo-samply samply --bench throughput -- alpha beta
+fake-samply raw args=["record", "--", "[..]target[..]samply[..]deps[..]throughput-[..]", "--bench", "alpha", "beta"]
+fake-samply prefix=["record"]
+fake-samply runtime=["[..]target[..]samply[..]deps[..]throughput-[..]", "--bench", "alpha", "beta"]
+criterion bench sum=10 args=--bench alpha beta
+
+```
+```console
+$ cargo-samply samply --bench-flag=--my-bench --bench throughput
+fake-samply raw args=["record", "--", "[..]target[..]samply[..]deps[..]throughput-[..]", "--my-bench"]
+fake-samply prefix=["record"]
+fake-samply runtime=["[..]target[..]samply[..]deps[..]throughput-[..]", "--my-bench"]
+criterion bench sum=10 args=--my-bench
+
+```
+```console
+$ cargo-samply samply --bench-flag=none --bench throughput
+fake-samply raw args=["record", "--", "[..]target[..]samply[..]deps[..]throughput-[..]"]
+fake-samply prefix=["record"]
+fake-samply runtime=["[..]target[..]samply[..]deps[..]throughput-[..]"]
+criterion bench sum=10
+
+```

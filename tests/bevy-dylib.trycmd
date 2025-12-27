@@ -1,0 +1,9 @@
+
+```console
+$ cargo-samply --no-samply
+Bevy app starting...
+Setup system ran.
+Exiting...
+Bevy app finished.
+
+```

@@ -1,0 +1,13 @@
+```console
+$ cargo-samply samply --samply-args="--rate 2000" --dry-run
+cargo build '--message-format=json-diagnostic-rendered-ansi' --profile samply --bin samply-args
+[..]record --rate 2000 -- [..]target[..]samply[..]samply-args[..]
+
+```
+
+```console
+$ cargo-samply samply --samply-args="--rate 2000 --save-only profile.json" --dry-run
+cargo build '--message-format=json-diagnostic-rendered-ansi' --profile samply --bin samply-args
+[..]record --rate 2000 --save-only profile.json -- [..]target[..]samply[..]samply-args[..]
+
+```

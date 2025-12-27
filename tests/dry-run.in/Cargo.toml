@@ -1,0 +1,18 @@
+[package]
+name = "examples-package"
+version = "0.1.0"
+edition = "2021"
+publish = false
+default-run = "main"
+
+[[bin]]
+name = "another"
+path = "src/another/main.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[profile.samply]
+inherits = "release"
+debug = true

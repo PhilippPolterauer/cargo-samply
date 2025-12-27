@@ -1,0 +1,13 @@
+# Test for package filtering in workspaces
+
+```console
+$ cargo-samply -p pkg-a --no-samply
+Hello from bin-a
+
+```
+
+```console
+$ cargo-samply -p pkg-b --no-samply
+Hello from bin-b
+
+```

@@ -1,0 +1,11 @@
+[package]
+name = "bevy_test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.13", default-features = false, features = ["dynamic_linking"] }
+
+[profile.samply]
+inherits = "release"
+debug = true

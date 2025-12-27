@@ -1,0 +1,13 @@
+[package]
+name = "bench-fixture"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bench]]
+name = "throughput"
+harness = false
+
+[profile.samply]
+inherits = "release"
+debug = true

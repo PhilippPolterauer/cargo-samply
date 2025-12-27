@@ -1,0 +1,27 @@
+{
+    "google_auth": false,
+    "agents": {
+        "frontend-ui-ux-engineer": {
+            "model": "google/gemini-3-pro-high"
+        },
+        "document-writer": {
+            "model": "google/gemini-3-flash"
+        },
+        "multimodal-looker": {
+            "model": "google/gemini-3-flash"
+        },
+        "oracle": {
+            "model": "github-copilot/gpt-5.2"
+        },
+        "explore": {
+            "model": "google/gemini-3-flash"
+        },
+        "librarian": {
+            "model": "google/gemini-3-pro-high"
+        },
+        "Sisyphus": {
+            "model": "google/claude-opus-4-5-thinking-high"
+        }
+    },
+    "disabled_hooks": ["comment-checker"]
+}

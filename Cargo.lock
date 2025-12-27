@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-samply"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "cargo_metadata",
  "cargo_toml",
@@ -113,6 +113,7 @@ dependencies = [
  "log",
  "ocli",
  "regex",
+ "shell-words",
  "tempfile",
  "thiserror",
  "toml 0.9.7",
@@ -829,6 +830,12 @@ checksum = "5417783452c2be558477e104686f7de5dae53dba813c28435e0e70f82d9b04ee"
 dependencies = [
  "serde_core",
 ]
+
+[[package]]
+name = "shell-words"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
 name = "shlex"

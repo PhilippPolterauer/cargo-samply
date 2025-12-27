@@ -1,0 +1,8 @@
+[package]
+name = "samply-args"
+version = "0.1.0"
+edition = "2021"
+
+[profile.samply]
+inherits = "release"
+debug = true
