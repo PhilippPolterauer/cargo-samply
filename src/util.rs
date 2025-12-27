@@ -207,10 +207,7 @@ pub fn resolve_bench_target_name(
     Ok(requested.to_string())
 }
 
-pub fn guess_bin(
-    cargo_toml: &Path,
-    all_targets: &WorkspaceMetadata,
-) -> error::Result<String> {
+pub fn guess_bin(cargo_toml: &Path, all_targets: &WorkspaceMetadata) -> error::Result<String> {
     if let Ok(manifest) = cargo_toml::Manifest::from_path(cargo_toml) {
         let default_run = manifest.package.and_then(|p| p.default_run);
         if let Some(bin) = default_run {
@@ -226,10 +223,7 @@ pub fn guess_bin(
         return Ok(all_targets.binaries[0].clone());
     }
 
-    create_suggestions_error(
-        all_targets.binaries.clone(),
-        all_targets.examples.clone(),
-    )
+    create_suggestions_error(all_targets.binaries.clone(), all_targets.examples.clone())
 }
 
 /// Helper function to add suggestions for a list of targets.
@@ -254,10 +248,7 @@ fn add_target_suggestions(
     }
 }
 
-fn create_suggestions_error(
-    binaries: Vec<String>,
-    examples: Vec<String>,
-) -> error::Result<String> {
+fn create_suggestions_error(binaries: Vec<String>, examples: Vec<String>) -> error::Result<String> {
     let mut suggestions = Vec::new();
 
     add_target_suggestions(&mut suggestions, &binaries, "binaries", "--bin");

@@ -11,7 +11,10 @@ fn trycmd() {
     let mut t = test
         .env("TERM", "dumb")
         .env("CARGO_TERM_QUIET", "true")
-        .env("CARGO_SAMPLY_SAMPLY_PATH", fake_samply.display().to_string());
+        .env(
+            "CARGO_SAMPLY_SAMPLY_PATH",
+            fake_samply.display().to_string(),
+        );
 
     t.register_bin("fake-samply", fake_samply);
 

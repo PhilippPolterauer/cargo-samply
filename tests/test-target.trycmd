@@ -1,7 +1,7 @@
 ```console
 $ cargo-samply samply --test integration_test --dry-run
 cargo build '--message-format=json-diagnostic-rendered-ansi' --profile samply --test integration_test
-[..]=[..] [..]fake-samply record -- [..]target[..]samply[..]deps[..]integration_test[..]
+[..]record -- [..]target[..]samply[..]deps[..]integration_test[..]
 
 ```
 

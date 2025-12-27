@@ -1,6 +1,6 @@
 ```console
 $ cargo-samply samply --dry-run
 cargo build '--message-format=json-diagnostic-rendered-ansi' --profile samply --bin main
-[..] [..]fake-samply record -- [..]main
+[..]record -- [..]main[..]
 
 ```

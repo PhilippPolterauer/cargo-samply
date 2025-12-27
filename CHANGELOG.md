@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added thread-safe environment variable testing using a global mutex to prevent flaky test failures in CI.
 - Optimized target discovery by avoiding redundant `cargo metadata` calls during target resolution.
+- Removed compile-time check for `samply` in `build.rs` to allow installation without `samply` pre-installed.
 
 ## [0.3.4] - 2025-12-12
 
