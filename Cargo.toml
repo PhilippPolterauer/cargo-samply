@@ -32,7 +32,7 @@ log = { version = "0.4", features = ["std"] }
 toml = { version = "0.9.5" }
 clap-cargo = "0.17.0"
 cargo_metadata = "0.22"
-ocli = "0.2.1"
+ocli = "0.3.0"
 shell-words = "1.1"
 which = "8.0.0"
 
