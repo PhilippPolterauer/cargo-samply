@@ -7,7 +7,7 @@ fn trycmd() {
         .unwrap()
         .collect::<Vec<_>>();
     let test = trycmd::TestCases::new();
-    let fake_samply = trycmd::cargo::cargo_bin("fake-samply");
+    let fake_samply = std::path::PathBuf::from(env!("CARGO_BIN_EXE_fake-samply"));
     let mut t = test
         .env("TERM", "dumb")
         .env("CARGO_TERM_QUIET", "true")
@@ -40,5 +40,5 @@ fn trycmd() {
             trycmd::schema::Bin::Path(pth.clone()),
         );
     }
-    t.register_bin("cargo-samply", trycmd::cargo::cargo_bin("cargo-samply"));
+    t.register_bin("cargo-samply", std::path::PathBuf::from(env!("CARGO_BIN_EXE_cargo-samply")));
 }
