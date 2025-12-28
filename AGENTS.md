@@ -67,6 +67,7 @@ If `just` is installed, use these shortcuts:
 - `just check-strict`: Run strict clippy (deny warnings) + all checks.
 - `just test`: Run tests in release mode.
 - `just test-overwrite`: Update `trycmd` snapshots.
+- `just changelog`: Generate CHANGELOG.md using git-cliff.
 
 ## 2. Project Structure & Testing Strategy
 
@@ -135,3 +136,27 @@ If you are an AI agent (Cursor, Copilot, Cline, etc.) operating in this repo:
 4.  **Test Coverage:**
     - If adding a new feature, consider adding a new `.trycmd` file and a corresponding fixture in `tests/new_fixture.in/`.
     - If fixing a bug, verify it with a test case first.
+
+## 5. Git Commit Conventions
+
+When creating commits, follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+
+### Format
+`type(scope): subject`
+
+### Types
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `perf`: A code change that improves performance
+- `test`: Adding missing tests or correcting existing tests
+- `build`: Changes that affect the build system or external dependencies
+- `ci`: Changes to our CI configuration files and scripts
+- `chore`: Other changes that don't modify src or test files
+
+### Rules
+- **Subject**: Use the imperative mood ("add" not "added", "fix" not "fixed").
+- **Scope**: Optional, but recommended (e.g., `cli`, `util`, `tests`).
+- **Breaking Changes**: Append `!` after the type/scope (e.g., `feat!: remove support for older rust versions`) or include `BREAKING CHANGE:` in the footer.
