@@ -73,6 +73,21 @@ pub enum Error {
     /// Samply binary not installed or not in PATH
     #[error("samply is not installed or not in PATH")]
     SamplyNotFound,
+    /// Failed to get Rust sysroot from rustc
+    #[error("Failed to get Rust sysroot: {message}")]
+    RustSysrootFailed { message: String },
+    /// Failed to get Rust host target from rustc
+    #[error("Failed to get Rust host target: {message}")]
+    RustHostTargetFailed { message: String },
+    /// Invalid samply arguments
+    #[error("Invalid samply arguments: {0}")]
+    InvalidSamplyArgs(String),
+    /// Failed to capture cargo stdout
+    #[error("Failed to capture cargo stdout: {0}")]
+    CargoStdoutCaptureFailed(String),
+    /// cargo-metadata execution failed
+    #[error("Cargo metadata failed: {0}")]
+    CargoMetadataFailed(#[from] cargo_metadata::Error),
 }
 
 /// Alias for a `Result` with the error type `cargo_samply::Error`.

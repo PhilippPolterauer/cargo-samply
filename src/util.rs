@@ -9,7 +9,7 @@
 use std::{
     collections::HashSet,
     fs::{self, OpenOptions},
-    io::{self, Write},
+    io::Write,
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
     str::{from_utf8, FromStr},
@@ -119,8 +119,7 @@ pub fn get_workspace_metadata_from(
     let metadata = MetadataCommand::new()
         .current_dir(work_dir)
         .no_deps()
-        .exec()
-        .map_err(|e| error::Error::Io(std::io::Error::other(e)))?;
+        .exec()?;
 
     let mut binaries_set = HashSet::new();
     let mut examples_set = HashSet::new();
@@ -313,9 +312,9 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
         .arg("sysroot")
         .output()?;
     if !output.status.success() {
-        return Err(error::Error::Io(io::Error::other(
-            "Failed to get Rust sysroot",
-        )));
+        return Err(error::Error::RustSysrootFailed {
+            message: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
     }
     Ok(PathBuf::from(from_utf8(&output.stdout)?.trim()))
 }
@@ -323,9 +322,9 @@ fn get_rust_sysroot() -> error::Result<PathBuf> {
 fn get_rustc_host_target() -> error::Result<String> {
     let output = Command::new("rustc").arg("-vV").output()?;
     if !output.status.success() {
-        return Err(error::Error::Io(io::Error::other(
-            "Failed to get Rust host target",
-        )));
+        return Err(error::Error::RustHostTargetFailed {
+            message: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
     }
     let output_str = from_utf8(&output.stdout)?;
     for line in output_str.lines() {
@@ -333,9 +332,9 @@ fn get_rustc_host_target() -> error::Result<String> {
             return Ok(host.trim().to_string());
         }
     }
-    Err(error::Error::Io(io::Error::other(
-        "Failed to parse host target",
-    )))
+    Err(error::Error::RustHostTargetFailed {
+        message: "Could not find 'host:' line in rustc output".to_string(),
+    })
 }
 
 pub fn configure_library_path_for_binary(

@@ -21,6 +21,7 @@ use std::vec;
 use cargo_metadata::{Message, TargetKind as CargoTargetKind};
 use clap::Parser;
 
+use crate::error::IOResultExt;
 use crate::util::{
     calculate_library_path, configure_library_path_for_binary, ensure_samply_profile,
     get_all_targets, guess_bin, has_samply_profile, locate_project, resolve_bench_target_name,
@@ -186,12 +187,12 @@ fn get_bench_path(
     }
     let mut newest: Option<(SystemTime, std::path::PathBuf)> = None;
 
-    for entry in fs::read_dir(&deps_dir)? {
+    for entry in fs::read_dir(&deps_dir).path_ctx(&deps_dir)? {
         let entry = entry?;
-        if !entry.file_type()?.is_file() {
+        let path = entry.path();
+        if !entry.file_type().path_ctx(&path)?.is_file() {
             continue;
         }
-        let path = entry.path();
         let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
@@ -202,7 +203,8 @@ fn get_bench_path(
             continue;
         }
         let modified = entry
-            .metadata()?
+            .metadata()
+            .path_ctx(&path)?
             .modified()
             .unwrap_or(SystemTime::UNIX_EPOCH);
 
@@ -266,6 +268,84 @@ fn features_to_string(features: &[String]) -> Option<String> {
     } else {
         None
     }
+}
+
+/// Checks if samply is available when required.
+fn check_samply_availability(
+    samply_program: &str,
+    no_samply: bool,
+    dry_run: bool,
+) -> error::Result<()> {
+    if !no_samply && !dry_run && which::which(samply_program).is_err() {
+        return Err(error::Error::SamplyNotFound);
+    }
+    Ok(())
+}
+
+/// Handles profile injection logic and returns warnings if applicable.
+fn handle_profile_injection(
+    cli: &cli::Config,
+    workspace_root: &std::path::Path,
+    dry_run: bool,
+) -> error::Result<Vec<String>> {
+    let mut warnings = Vec::new();
+    if cli.profile == "samply" {
+        let no_inject_env = std::env::var("CARGO_SAMPLY_NO_PROFILE_INJECT").is_ok();
+        let should_inject = !cli.no_profile_inject && !no_inject_env;
+
+        if should_inject {
+            if !dry_run {
+                // In a workspace, ensure the profile is in the workspace root
+                let workspace_cargo_toml = workspace_root.join("Cargo.toml");
+                ensure_samply_profile(&workspace_cargo_toml)?;
+            }
+        } else {
+            let workspace_cargo_toml = workspace_root.join("Cargo.toml");
+            if !has_samply_profile(&workspace_cargo_toml)? {
+                warnings.push("Warning: Profile 'samply' is missing in Cargo.toml and injection is disabled. Profiling might fail or lack symbols.".to_string());
+            }
+        }
+    }
+    Ok(warnings)
+}
+
+/// Builds the cargo build arguments from CLI configuration and target.
+fn build_cargo_args(cli: &cli::Config, target: &Target) -> Vec<String> {
+    let features_str = features_to_string(&cli.features);
+
+    let mut args = vec![
+        "build".to_string(),
+        "--message-format=json-diagnostic-rendered-ansi".to_string(),
+        "--profile".to_string(),
+        cli.profile.clone(),
+    ];
+
+    if let Some(package) = &cli.package {
+        args.push("--package".to_string());
+        args.push(package.clone());
+    }
+
+    args.push(target.kind.cargo_flag().to_string());
+    args.push(target.name.clone());
+
+    if let Some(ref features) = features_str {
+        args.push("--features".to_string());
+        args.push(features.clone());
+    }
+    if cli.no_default_features {
+        args.push("--no-default-features".to_string());
+    }
+
+    args
+}
+
+/// Parses samply arguments from a string, returning an error for invalid input.
+fn parse_samply_args(samply_args: Option<&str>) -> error::Result<Vec<String>> {
+    samply_args
+        .map(shell_words::split)
+        .transpose()
+        .map_err(|e| error::Error::InvalidSamplyArgs(e.to_string()))
+        .map(|opt| opt.unwrap_or_default())
 }
 
 fn main() {
@@ -342,62 +422,17 @@ fn generate_plan(
     cli: &mut crate::cli::Config,
     cargo_toml: &std::path::Path,
 ) -> error::Result<ExecutionPlan> {
-    let mut warnings = Vec::new();
-
     let samply_program =
         std::env::var(SAMPLY_OVERRIDE_ENV).unwrap_or_else(|_| "samply".to_string());
 
-    if !cli.no_samply && !cli.dry_run && which::which(&samply_program).is_err() {
-        return Err(error::Error::SamplyNotFound);
-    }
+    check_samply_availability(&samply_program, cli.no_samply, cli.dry_run)?;
 
     let (target, metadata) = determine_target(cli, cargo_toml)?;
     let workspace_root = &metadata.workspace_root;
 
-    // Profile injection logic
-    if cli.profile == "samply" {
-        let no_inject_env = std::env::var("CARGO_SAMPLY_NO_PROFILE_INJECT").is_ok();
-        let should_inject = !cli.no_profile_inject && !no_inject_env;
+    let warnings = handle_profile_injection(cli, workspace_root, cli.dry_run)?;
 
-        if should_inject {
-            if !cli.dry_run {
-                // In a workspace, ensure the profile is in the workspace root
-                let workspace_cargo_toml = workspace_root.join("Cargo.toml");
-                ensure_samply_profile(&workspace_cargo_toml)?;
-            }
-        } else {
-            let workspace_cargo_toml = workspace_root.join("Cargo.toml");
-            if !has_samply_profile(&workspace_cargo_toml)? {
-                warnings.push("Warning: Profile 'samply' is missing in Cargo.toml and injection is disabled. Profiling might fail or lack symbols.".to_string());
-            }
-        }
-    }
-
-    let features_str = features_to_string(&cli.features);
-
-    let mut cargo_args = vec![
-        "build".to_string(),
-        "--message-format=json-diagnostic-rendered-ansi".to_string(),
-        "--profile".to_string(),
-        cli.profile.clone(),
-    ];
-
-    if let Some(package) = &cli.package {
-        cargo_args.push("--package".to_string());
-        cargo_args.push(package.clone());
-    }
-
-    cargo_args.push(target.kind.cargo_flag().to_string());
-    cargo_args.push(target.name.clone());
-
-    if let Some(ref features) = features_str {
-        cargo_args.push("--features".to_string());
-        cargo_args.push(features.clone());
-    }
-    if cli.no_default_features {
-        cargo_args.push("--no-default-features".to_string());
-    }
-
+    let cargo_args = build_cargo_args(cli, &target);
     let build_plan = BuildPlan { cargo_args };
 
     // Run Plan
@@ -429,15 +464,7 @@ fn generate_plan(
         env_vars.push((k, v));
     }
 
-    let samply_args = cli
-        .samply_args
-        .as_ref()
-        .map(|s| shell_words::split(s))
-        .transpose()
-        .map_err(|e| {
-            error::Error::Io(std::io::Error::other(format!("Invalid samply-args: {}", e)))
-        })?
-        .unwrap_or_default();
+    let samply_args = parse_samply_args(cli.samply_args.as_deref())?;
 
     let run_plan = RunPlan {
         bin_path,
@@ -495,6 +522,105 @@ fn print_plan(plan: &ExecutionPlan) {
     println!("{}", cmd_parts.join(" "));
 }
 
+/// Runs cargo build and extracts the binary path from build artifacts.
+fn run_cargo_build(
+    cargo_args: &[String],
+    target_name: Option<&str>,
+) -> error::Result<Option<PathBuf>> {
+    let mut cmd = Command::new("cargo");
+    cmd.args(cargo_args);
+    cmd.stdout(Stdio::piped());
+
+    debug!(
+        "running {:?} with args: {:?}",
+        cmd.get_program(),
+        cmd.get_args().collect::<Vec<_>>()
+    );
+
+    let mut child = cmd.spawn()?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        error::Error::CargoStdoutCaptureFailed("stdout was not piped".to_string())
+    })?;
+    let reader = BufReader::new(stdout);
+
+    let bin_path_from_build = parse_cargo_messages(reader, target_name);
+
+    let exit_code = child.wait()?;
+    if !exit_code.success() {
+        return Err(error::Error::CargoBuildFailed);
+    }
+
+    bin_path_from_build
+}
+
+fn parse_cargo_messages<R: std::io::Read>(
+    reader: BufReader<R>,
+    target_name: Option<&str>,
+) -> error::Result<Option<PathBuf>> {
+    let mut bin_path_from_build: Option<PathBuf> = None;
+
+    for message in Message::parse_stream(reader) {
+        match message? {
+            Message::CompilerMessage(msg) => {
+                if let Some(rendered) = msg.message.rendered {
+                    eprint!("{}", rendered);
+                }
+            }
+            Message::CompilerArtifact(artifact) => {
+                if let Some(name) = target_name {
+                    if artifact.target.name == name
+                        && artifact.target.kind.iter().any(|k| {
+                            k == &CargoTargetKind::Bin
+                                || k == &CargoTargetKind::Example
+                                || k == &CargoTargetKind::Bench
+                                || k == &CargoTargetKind::Test
+                        })
+                    {
+                        if let Some(path) = artifact.executable {
+                            bin_path_from_build = Some(path.into());
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(bin_path_from_build)
+}
+
+/// Runs the binary with samply profiler.
+fn run_samply(run_plan: &RunPlan, bin_path: &std::path::Path, profile: &str) -> error::Result<()> {
+    let mut samply_cmd = Command::new(&run_plan.samply_program);
+    configure_samply_command(
+        &mut samply_cmd,
+        bin_path,
+        &run_plan.args,
+        &run_plan.samply_args,
+        profile,
+    )?;
+    match samply_cmd.call() {
+        Ok(_) => Ok(()),
+        Err(error::Error::Io(io_err)) if io_err.kind() == io::ErrorKind::NotFound => {
+            Err(error::Error::SamplyNotFound)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+/// Runs the binary directly without profiling.
+fn run_binary_directly(
+    run_plan: &RunPlan,
+    bin_path: &std::path::Path,
+    profile: &str,
+) -> error::Result<()> {
+    let mut cmd = Command::new(bin_path);
+    cmd.args(&run_plan.args);
+    configure_library_path_for_binary(&mut cmd, bin_path, profile)?;
+    cmd.call()?;
+    Ok(())
+}
+
 fn execute_plan(
     plan: ExecutionPlan,
     profile: &str,
@@ -504,67 +630,24 @@ fn execute_plan(
         eprintln!("{}", w);
     }
 
-    let mut bin_path_from_build: Option<PathBuf> = None;
     let target_name = plan
         .run
         .re_resolve_context
         .as_ref()
         .map(|(_, _, t)| t.name.clone());
 
-    if let Some(build) = plan.build {
-        let mut cmd = Command::new("cargo");
-        cmd.args(&build.cargo_args);
-        cmd.stdout(Stdio::piped());
-
-        debug!(
-            "running {:?} with args: {:?}",
-            cmd.get_program(),
-            cmd.get_args().collect::<Vec<_>>()
-        );
-
-        let mut child = cmd.spawn()?;
-        let stdout = child.stdout.take().unwrap();
-        let reader = BufReader::new(stdout);
-
-        for message in Message::parse_stream(reader) {
-            match message? {
-                Message::CompilerMessage(msg) => {
-                    if let Some(rendered) = msg.message.rendered {
-                        eprint!("{}", rendered);
-                    }
-                }
-                Message::CompilerArtifact(artifact) => {
-                    if let Some(name) = &target_name {
-                        if &artifact.target.name == name
-                            && artifact.target.kind.iter().any(|k| {
-                                k == &CargoTargetKind::Bin
-                                    || k == &CargoTargetKind::Example
-                                    || k == &CargoTargetKind::Bench
-                                    || k == &CargoTargetKind::Test
-                            })
-                        {
-                            if let Some(path) = artifact.executable {
-                                bin_path_from_build = Some(path.into());
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        let exit_code = child.wait()?;
-        if !exit_code.success() {
-            return Err(error::Error::CargoBuildFailed);
-        }
-    }
+    let bin_path_from_build = if let Some(build) = plan.build {
+        run_cargo_build(&build.cargo_args, target_name.as_deref())?
+    } else {
+        None
+    };
 
     let bin_path = if let Some(path) = bin_path_from_build {
         path
-    } else if let Some((root, profile, target)) = plan.run.re_resolve_context {
-        resolve_target_path(&root, &profile, &target)?
+    } else if let Some((root, profile, target)) = &plan.run.re_resolve_context {
+        resolve_target_path(root, profile, target)?
     } else {
-        plan.run.bin_path
+        plan.run.bin_path.clone()
     };
 
     if !bin_path.exists() {
@@ -572,29 +655,10 @@ fn execute_plan(
     }
 
     if plan.run.is_samply {
-        let mut samply_cmd = Command::new(&plan.run.samply_program);
-        configure_samply_command(
-            &mut samply_cmd,
-            &bin_path,
-            &plan.run.args,
-            &plan.run.samply_args,
-            profile,
-        )?;
-        match samply_cmd.call() {
-            Ok(_) => {}
-            Err(error::Error::Io(io_err)) if io_err.kind() == io::ErrorKind::NotFound => {
-                return Err(error::Error::SamplyNotFound);
-            }
-            Err(err) => return Err(err),
-        }
+        run_samply(&plan.run, &bin_path, profile)
     } else {
-        let mut cmd = Command::new(&bin_path);
-        cmd.args(&plan.run.args);
-        configure_library_path_for_binary(&mut cmd, &bin_path, profile)?;
-        cmd.call()?;
+        run_binary_directly(&plan.run, &bin_path, profile)
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
