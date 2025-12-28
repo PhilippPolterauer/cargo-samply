@@ -2,7 +2,7 @@
 $ cargo-samply samply --no-profile-inject --bin main
 ? 1
 Warning: Profile 'samply' is missing in Cargo.toml and injection is disabled. Profiling might fail or lack symbols.
-error: profile `samply` is not defined
+error: profile [..]samply[..] is not defined
 error: Build failed
 
 ```
