@@ -37,12 +37,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved host target detection by querying `rustc` instead of using hardcoded values.
 - Improved binary path detection by parsing `cargo build` output, enabling support for cross-compilation and custom target directories.
 - Improved target triple detection for library path configuration by inferring it from the binary path, falling back to the host target.
+- Replaced generic `io::Error::other` with specific error variants (`InvalidSamplyArgs`, `CargoStdoutCaptureFailed`, `CargoMetadataFailed`) for better error handling.
+- Fixed CI code coverage failures by disabling ANSI color output in coverage jobs.
 
 ### Internal
 
 - Added thread-safe environment variable testing using a global mutex to prevent flaky test failures in CI.
 - Optimized target discovery by avoiding redundant `cargo metadata` calls during target resolution.
 - Removed compile-time check for `samply` in `build.rs` to allow installation without `samply` pre-installed.
+- Refactored `src/main.rs` by extracting helper functions to reduce cyclomatic complexity.
+- Refactored `src/util.rs` to deduplicate TOML parsing logic in profile checks.
+- Added `.rustfmt.toml` configuration to ensure consistent code style.
+- Enhanced CI infrastructure with security auditing (`cargo-audit`), code coverage (`cargo-llvm-cov`), and automated dependency updates (Dependabot).
+- Optimized CI workflows by splitting lint and test jobs and enabling caching for faster feedback.
+
+### Documentation
+
+- Updated library overview documentation to include test profiling support and usage examples.
+- Added missing API documentation for public items in the `util` module.
+
 
 ## [0.3.4] - 2025-12-12
 
