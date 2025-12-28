@@ -1,145 +1,119 @@
 //! # cargo-samply
 //!
-//! A cargo subcommand to automate the process of running [samply](https://github.com/mstange/samply)
-//! for profiling Rust project binaries.
+//! Profile Rust code with [`samply`](https://github.com/mstange/samply), without
+//! remembering the build/run ceremony.
 //!
-//! ## Overview
+//! This crate provides both:
+//! - a Cargo subcommand (`cargo samply` / `cargo-samply`)
+//! - a small Rust API surface (mainly for CLI parsing / helpers)
 //!
-//! `cargo-samply` simplifies the workflow of profiling Rust applications by:
-//! - Automatically building your project with debug symbols
-//! - Managing the `samply` profiling profile in `Cargo.toml`
-//! - Running `samply` with the correct binary path
-//! - Supporting binaries, examples, benches, and tests
-//! - Providing flexible feature and profile selection
+//! > Note: This project is **not affiliated** with upstream `samply`.
 //!
 //! ## Installation
 //!
-//! ```bash
-//! cargo install cargo-samply
-//! ```
-//!
-//! You also need to install `samply`:
-//! ```bash
-//! cargo install samply
+//! ```console
+//! $ cargo install cargo-samply
+//! $ cargo install samply
 //! ```
 //!
 //! ## Usage
 //!
-//! ### Basic Usage
+//! Profile the default binary target:
 //!
-//! Profile the default binary:
-//! ```bash
-//! cargo samply
+//! ```console
+//! $ cargo samply
 //! ```
 //!
-//! Profile a specific binary:
-//! ```bash
-//! cargo samply --bin my-binary
+//! Select a specific target:
+//!
+//! ```console
+//! $ cargo samply --bin my-binary
+//! $ cargo samply --example my-example
+//! $ cargo samply --bench throughput -- --sample-size 10
+//! $ cargo samply --test integration_suite
 //! ```
 //!
-//! Profile an example:
-//! ```bash
-//! cargo samply --example my-example
+//! Bench targets must be referenced using their exact Cargo target names (no
+//! suffix rewriting / aliasing).
+//!
+//! ### Passing arguments
+//!
+//! Arguments after `--` are passed to the program being profiled:
+//!
+//! ```console
+//! $ cargo samply --bin my-binary -- --input file.txt --verbose
 //! ```
 //!
-//! Profile a benchmark target:
-//! ```bash
-//! cargo samply --bench throughput -- --sample-size 10
+//! You can also pass arguments directly to `samply` itself:
+//!
+//! ```console
+//! $ cargo samply --samply-args "--rate 2000" --bin my-binary
 //! ```
 //!
-//! Profile a test target:
-//! ```bash
-//! cargo samply --test my-integration-test
+//! ### Workspaces
+//!
+//! In a workspace, you can pick the package to profile:
+//!
+//! ```console
+//! $ cargo samply -p my-package --bin my-binary
 //! ```
 //!
-//! Bench targets must be referenced using their exact Cargo target names—no
-//! suffix rewriting or aliasing occurs.
+//! ### Bench flag injection
 //!
-//! When you run with `--bench <target>`, cargo-samply will always execute the
-//! final binary with `--bench` so it behaves exactly like
-//! `cargo bench`.
+//! By default, when profiling a benchmark via `--bench <name>`, `cargo-samply`
+//! will run the final benchmark binary with `--bench` (mirroring `cargo bench`).
+//! You can customize this for non-Criterion harnesses:
 //!
-//! The current bench flow has only been validated with Criterion-driven setups.
-//! Other bespoke runners are untested and may need adjustments.
-//!
-//! ### Advanced Options
-//!
-//! Use a different profile:
-//! ```bash
-//! cargo samply --profile release
+//! ```console
+//! $ cargo samply --bench throughput --bench-flag=--my-custom-flag
+//! $ cargo samply --bench throughput --bench-flag=none
 //! ```
 //!
-//! Enable specific features:
-//! ```bash
-//! cargo samply --features feature1,feature2
-//! # or
-//! cargo samply --features feature1 --features feature2
+//! ### Dry-run and target listing
+//!
+//! `--dry-run` prints the `cargo build` and final execution command without
+//! running them. The output is intended to be copy-pasteable in a shell.
+//!
+//! ```console
+//! $ cargo samply --dry-run --bin my-binary -- --arg value
 //! ```
 //!
-//! Run without samply (just execute the binary):
-//! ```bash
-//! cargo samply --no-samply -- arg1 arg2
+//! `--list-targets` prints discovered targets and exits:
+//!
+//! ```console
+//! $ cargo samply --list-targets
 //! ```
 //!
-//! Quiet mode (suppress output):
-//! ```bash
-//! cargo samply --quiet
-//! ```
+//! ## Environment variables
 //!
-//! Verbose mode (debug output):
-//! ```bash
-//! cargo samply --verbose
-//! ```
+//! - `CARGO_SAMPLY_SAMPLY_PATH`: override the path to the `samply` binary.
+//! - `CARGO_SAMPLY_NO_PROFILE_INJECT`: disable automatic modification of
+//!   `Cargo.toml` (equivalent to `--no-profile-inject`).
+//! - `CARGO_SAMPLY_NO_SYSROOT_INJECTION`: disable automatic injection of Rust
+//!   sysroot library paths into the runtime loader path.
+//!   (Linux: `LD_LIBRARY_PATH`, macOS: `DYLD_LIBRARY_PATH`, Windows: `PATH`).
 //!
-//! ### Passing Arguments to the Binary
+//! ## How it works (high level)
 //!
-//! You can pass arguments to the binary being profiled by using `--` to separate
-//! cargo-samply options from binary arguments:
+//! 1. Locates the Cargo project (`cargo locate-project`).
+//! 2. Ensures a `[profile.samply]` exists (unless disabled).
+//! 3. Builds the selected target with `cargo build`.
+//! 4. Resolves the produced artifact path from Cargo metadata/messages.
+//! 5. Optionally configures runtime library paths (including Rust sysroot) so
+//!    binaries with dynamic Rust dependencies run reliably.
+//! 6. Runs either the binary directly (`--no-samply`) or under
+//!    `samply record -- <artifact> ...`.
 //!
-//! ```bash
-//! # Pass arguments to the default binary
-//! cargo samply -- arg1 arg2 --flag value
-//! ```
+//! ## The `samply` Cargo profile
 //!
-//! ```bash
-//! # Pass arguments to a specific binary
-//! cargo samply --bin my-binary -- --input file.txt --verbose
-//! ```
-//!
-//! ```bash
-//! # Pass arguments to an example
-//! cargo samply --example my-example -- --config config.json
-//! ```
-//!
-//! When using `--no-samply` (to just run the binary without profiling),
-//! arguments are passed through directly:
-//!
-//! ```bash
-//! # Run binary with arguments but without profiling
-//! cargo samply --no-samply --bin my-binary -- --debug --port 8080
-//! ```
-//!
-//! **Note**: All arguments after `--` are passed directly to your binary,
-//! so you can use any command-line arguments your binary supports.
-//!
-//! ## How It Works
-//!
-//! 1. **Profile Management**: Automatically adds a `samply` profile to your `Cargo.toml` if it doesn't exist
-//! 2. **Build**: Compiles your project with the specified profile
-//! 3. **Binary Resolution**: Determines which binary to run based on `--bin`, `--example`, or `default-run`
-//! 4. **Profiling**: Launches `samply record` with the built binary
-//!
-//! ## The `samply` Profile
-//!
-//! The tool automatically adds this profile to your `Cargo.toml`:
+//! When profile injection is enabled, `cargo-samply` ensures your manifest
+//! contains:
 //!
 //! ```toml
 //! [profile.samply]
 //! inherits = "release"
 //! debug = true
 //! ```
-//!
-//! This provides optimized code with debug symbols for accurate profiling.
 
 pub mod cli;
 pub mod error;

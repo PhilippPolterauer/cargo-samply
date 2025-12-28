@@ -1,7 +1,7 @@
 # discovery Specification
 
 ## Purpose
-TBD - created by archiving change improve-robustness-and-ux. Update Purpose after archive.
+Defines how targets (binaries, examples, tests) are discovered and prioritized within workspaces.
 ## Requirements
 ### Requirement: Authoritative Target Discovery
 The system SHALL use `cargo metadata` to discover targets, ensuring auto-discovered targets are found.

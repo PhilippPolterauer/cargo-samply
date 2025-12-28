@@ -1,7 +1,7 @@
 # cli Specification
 
 ## Purpose
-TBD - created by archiving change improve-robustness-and-ux. Update Purpose after archive.
+Defines the command-line interface, including standard flags, test profiling, argument forwarding, and dry-run output.
 ## Requirements
 ### Requirement: Standardized Cargo Flags
 The CLI SHALL align with standard Cargo conventions.

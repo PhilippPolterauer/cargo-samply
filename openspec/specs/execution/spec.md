@@ -1,7 +1,7 @@
 # execution Specification
 
 ## Purpose
-TBD - created by archiving change improve-robustness-and-ux. Update Purpose after archive.
+Defines how the binary path is resolved and how the system verifies tool availability before execution.
 ## Requirements
 ### Requirement: Build-Driven Path Resolution
 The system SHALL determine the binary path by parsing the `CompilerArtifact` output from `cargo build`, rather than predicting the path.
