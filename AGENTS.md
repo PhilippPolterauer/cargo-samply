@@ -67,6 +67,7 @@ If `just` is installed, use these shortcuts:
 - `just check-strict`: Run strict clippy (deny warnings) + all checks.
 - `just test`: Run tests in release mode.
 - `just test-overwrite`: Update `trycmd` snapshots.
+- `just changelog`: Generate CHANGELOG.md using git-cliff.
 
 ## 2. Project Structure & Testing Strategy
 
