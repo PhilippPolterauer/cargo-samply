@@ -47,21 +47,25 @@ inherits = \"release\"
 debug = true
 ";
 
-/// Ensures that the samply profile exists in the given Cargo.toml file.
-pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
+/// Reads Cargo.toml and returns whether the samply profile exists.
+fn has_samply_profile_in_manifest(cargo_toml: &Path) -> error::Result<bool> {
     let cargo_toml_content: String = fs::read_to_string(cargo_toml).path_ctx(cargo_toml)?;
     let manifest = toml::Table::from_str(&cargo_toml_content)?;
-    let profile_samply = manifest
+    Ok(manifest
         .get("profile")
         .and_then(|p| p.as_table())
-        .and_then(|p| p.get("samply"));
+        .and_then(|p| p.get("samply"))
+        .is_some())
+}
 
-    if profile_samply.is_none() {
+/// Ensures that the samply profile exists in the given Cargo.toml file.
+pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
+    if !has_samply_profile_in_manifest(cargo_toml)? {
         let mut f = OpenOptions::new()
             .append(true)
             .open(cargo_toml)
             .path_ctx(cargo_toml)?;
-        f.write(SAMPLY_PROFILE.as_bytes()).path_ctx(cargo_toml)?;
+        f.write_all(SAMPLY_PROFILE.as_bytes()).path_ctx(cargo_toml)?;
         info!("'samply' profile was added to '{}'", cargo_toml.display());
     }
     Ok(())
@@ -69,14 +73,7 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
 
 /// Checks if the samply profile exists in the given Cargo.toml file.
 pub fn has_samply_profile(cargo_toml: &Path) -> error::Result<bool> {
-    let cargo_toml_content: String = fs::read_to_string(cargo_toml).path_ctx(cargo_toml)?;
-    let manifest = toml::Table::from_str(&cargo_toml_content)?;
-    let profile_samply = manifest
-        .get("profile")
-        .and_then(|p| p.as_table())
-        .and_then(|p| p.get("samply"));
-
-    Ok(profile_samply.is_some())
+    has_samply_profile_in_manifest(cargo_toml)
 }
 
 /// Helper to find the package that contains the current working directory.
