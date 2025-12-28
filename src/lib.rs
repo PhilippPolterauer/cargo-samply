@@ -9,7 +9,7 @@
 //! - Automatically building your project with debug symbols
 //! - Managing the `samply` profiling profile in `Cargo.toml`
 //! - Running `samply` with the correct binary path
-//! - Supporting binaries, examples, and benches (Criterion harness tested)
+//! - Supporting binaries, examples, benches, and tests
 //! - Providing flexible feature and profile selection
 //!
 //! ## Installation
@@ -45,6 +45,11 @@
 //! Profile a benchmark target:
 //! ```bash
 //! cargo samply --bench throughput -- --sample-size 10
+//! ```
+//!
+//! Profile a test target:
+//! ```bash
+//! cargo samply --test my-integration-test
 //! ```
 //!
 //! Bench targets must be referenced using their exact Cargo target names—no
