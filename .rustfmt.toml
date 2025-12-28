@@ -1,0 +1,11 @@
+# Rustfmt configuration for cargo-samply
+# Using Rust 2021 edition defaults with explicit settings for stability
+
+edition = "2021"
+max_width = 100
+use_small_heuristics = "Default"
+
+# Formatting preferences
+newline_style = "Auto"
+use_field_init_shorthand = true
+use_try_shorthand = true
