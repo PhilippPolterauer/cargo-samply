@@ -74,7 +74,8 @@ pub fn ensure_samply_profile(cargo_toml: &Path) -> error::Result<()> {
             .append(true)
             .open(cargo_toml)
             .path_ctx(cargo_toml)?;
-        f.write_all(SAMPLY_PROFILE.as_bytes()).path_ctx(cargo_toml)?;
+        f.write_all(SAMPLY_PROFILE.as_bytes())
+            .path_ctx(cargo_toml)?;
         info!("'samply' profile was added to '{}'", cargo_toml.display());
     }
     Ok(())
