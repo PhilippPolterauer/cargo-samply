@@ -149,7 +149,7 @@ pub fn get_workspace_metadata_from(
         let pkg = metadata
             .packages
             .iter()
-            .find(|p| p.name.to_string() == pkg_name)
+            .find(|p| p.name == pkg_name)
             .ok_or_else(|| error::Error::PackageNotFound {
                 name: pkg_name.to_string(),
             })?;
