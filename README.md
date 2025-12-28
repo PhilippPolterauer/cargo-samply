@@ -6,7 +6,7 @@
 
 Profile Rust code with `samply`, without remembering the build/run ceremony.
 
-> **Important:** This project is **not affiliated with, endorsed by, or maintained by** the official `samply` project or its authors. It is an independent Cargo subcommand that happens to integrate with the `samply` profiler.
+> **Important:** This project is **not affiliated with, endorsed by, or maintained by** the official `samply` project or its authors. It is an independent Cargo subcommand that integrates with the `samply` profiler.
 
 ## What it does
 

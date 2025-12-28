@@ -58,3 +58,7 @@ test:
 # Run tests with trycmd overwrite (for updating test snapshots)
 test-overwrite:
     TRYCMD=overwrite cargo test --release
+
+# Generate changelog using git-cliff
+changelog:
+    git cliff -o CHANGELOG.md
