@@ -2,67 +2,45 @@ on: push
 name: Continuous integration
 
 jobs:
-  lints:
-    name: Lints
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: "Cache cargo"
-        id: cache-cargo
-        uses: "actions/cache/restore@v4"
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: lint
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      
       - name: Run tests
-        run:  cargo test --release
+        run: cargo test --release
         env:
           NO_COLOR: 1
           TERM: dumb
           CARGO_TERM_COLOR: never
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        # No need to execute it multiple times
-        if: matrix.os == 'ubuntu-latest'
-        with:
-          command: fmt
-          args:  --all -- --check
-
-      - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets --all-features
-
-      - name: Always Save Cache
-        id: cache-save
-        if: always() && steps.cache-cargo.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          key: ${{ steps.cache-cargo.outputs.cache-primary-key }}
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
 
   security:
     name: Security Audit
@@ -92,5 +70,3 @@ jobs:
         with:
           files: lcov.info
           fail_ci_if_error: false
-
-
