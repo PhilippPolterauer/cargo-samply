@@ -40,5 +40,8 @@ fn trycmd() {
             trycmd::schema::Bin::Path(pth.clone()),
         );
     }
-    t.register_bin("cargo-samply", std::path::PathBuf::from(env!("CARGO_BIN_EXE_cargo-samply")));
+    t.register_bin(
+        "cargo-samply",
+        std::path::PathBuf::from(env!("CARGO_BIN_EXE_cargo-samply")),
+    );
 }
