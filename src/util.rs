@@ -19,12 +19,21 @@ use crate::error::{self, IOResultExt};
 use cargo_metadata::MetadataCommand;
 use log::{debug, info};
 
+/// Metadata about a Cargo workspace, including available targets.
+///
+/// This struct contains lists of all binaries, examples, benchmarks,
+/// and tests discovered in the workspace.
 #[derive(Debug)]
 pub struct WorkspaceMetadata {
+    /// Names of all binary targets in the workspace
     pub binaries: Vec<String>,
+    /// Names of all example targets in the workspace
     pub examples: Vec<String>,
+    /// Names of all benchmark targets in the workspace
     pub benches: Vec<String>,
+    /// Names of all test targets in the workspace
     pub tests: Vec<String>,
+    /// Path to the workspace root directory
     pub workspace_root: PathBuf,
 }
 
@@ -107,6 +116,16 @@ pub fn find_current_package(
 }
 
 /// Gets workspace metadata including all available binaries and examples.
+///
+/// # Arguments
+///
+/// * `cargo_toml` - Path to the Cargo.toml file
+/// * `selected_package` - Optional package name to filter targets
+///
+/// # Errors
+///
+/// Returns an error if the Cargo.toml cannot be read or parsed,
+/// or if the specified package is not found.
 pub fn get_workspace_metadata_from(
     cargo_toml: &Path,
     selected_package: Option<&str>,
@@ -180,6 +199,17 @@ pub fn get_workspace_metadata_from(
     })
 }
 
+/// Retrieves all available targets from the workspace.
+///
+/// # Arguments
+///
+/// * `cargo_toml` - Path to the Cargo.toml file
+/// * `selected_package` - Optional package name to filter targets
+///
+/// # Errors
+///
+/// Returns an error if the Cargo.toml cannot be read or parsed,
+/// or if the specified package is not found.
 pub fn get_all_targets(
     cargo_toml: &Path,
     selected_package: Option<&str>,
@@ -187,6 +217,23 @@ pub fn get_all_targets(
     get_workspace_metadata_from(cargo_toml, selected_package)
 }
 
+/// Resolves a benchmark target name, validating it exists.
+///
+/// # Arguments
+///
+/// * `cargo_toml` - Path to the Cargo.toml file
+/// * `requested` - The requested benchmark name
+/// * `selected_package` - Optional package name filter
+///
+/// # Returns
+///
+/// The validated benchmark name, or the original if not found
+/// (allowing cargo to produce the error).
+///
+/// # Errors
+///
+/// Returns an error if the Cargo.toml cannot be read or parsed,
+/// or if the specified package is not found.
 pub fn resolve_bench_target_name(
     cargo_toml: &Path,
     requested: &str,
@@ -203,6 +250,18 @@ pub fn resolve_bench_target_name(
     Ok(requested.to_string())
 }
 
+/// Attempts to determine which binary to run.
+///
+/// Uses the following priority:
+/// 1. `default-run` from Cargo.toml manifest
+/// 2. The only binary (if exactly one exists)
+/// 3. Returns an error with suggestions if ambiguous
+///
+/// # Errors
+///
+/// Returns `NoBinaryFound` if no binaries exist, or
+/// `BinaryToRunNotDetermined` if multiple binaries exist
+/// without a default.
 pub fn guess_bin(cargo_toml: &Path, all_targets: &WorkspaceMetadata) -> error::Result<String> {
     if let Ok(manifest) = cargo_toml::Manifest::from_path(cargo_toml) {
         let default_run = manifest.package.and_then(|p| p.default_run);
@@ -256,8 +315,23 @@ fn create_suggestions_error(binaries: Vec<String>, examples: Vec<String>) -> err
     })
 }
 
+/// Extension trait for `std::process::Command` with logging support.
+///
+/// Provides convenience methods for running commands with automatic
+/// debug logging of the command and arguments.
 pub trait CommandExt {
+    /// Spawns the command, waits for completion, and returns the exit status.
+    ///
+    /// Logs the command and arguments at debug level before execution.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if spawning the command fails or if waiting for it fails.
     fn call(&mut self) -> error::Result<ExitStatus>;
+
+    /// Logs the command and arguments at debug level.
+    ///
+    /// Returns `&mut Command` for method chaining.
     fn log(&mut self) -> &mut Command;
 }
 
@@ -276,9 +350,15 @@ impl CommandExt for Command {
     }
 }
 
+/// Platform-specific configuration for library path environment variables.
+///
+/// Different operating systems use different environment variables
+/// and path separators for dynamic library loading.
 #[derive(Debug, Clone, Copy)]
 pub struct Platform {
+    /// The environment variable name (e.g., "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "PATH")
     pub env_var_name: &'static str,
+    /// The path separator (e.g., ":" on Unix, ";" on Windows)
     pub separator: &'static str,
 }
 
@@ -334,6 +414,20 @@ fn get_rustc_host_target() -> error::Result<String> {
     })
 }
 
+/// Configures the library path environment for running a binary.
+///
+/// Adds the Rust sysroot library paths and the binary's deps directory
+/// to the appropriate platform-specific environment variable.
+///
+/// # Arguments
+///
+/// * `cmd` - The command to configure
+/// * `bin_path` - Path to the binary being run
+/// * `profile` - The build profile used
+///
+/// # Errors
+///
+/// Returns an error if the Rust sysroot cannot be determined.
 pub fn configure_library_path_for_binary(
     cmd: &mut Command,
     bin_path: &Path,
@@ -346,6 +440,20 @@ pub fn configure_library_path_for_binary(
     Ok(())
 }
 
+/// Calculates the library path value for a given binary.
+///
+/// Returns the environment variable name and value to set,
+/// or `None` if sysroot injection is disabled via
+/// `CARGO_SAMPLY_NO_SYSROOT_INJECTION`.
+///
+/// # Arguments
+///
+/// * `bin_path` - Path to the binary being run
+/// * `profile` - The build profile used
+///
+/// # Errors
+///
+/// Returns an error if the Rust sysroot cannot be determined.
 pub fn calculate_library_path(
     bin_path: &Path,
     profile: &str,
