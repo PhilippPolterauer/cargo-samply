@@ -24,7 +24,7 @@ The CLI SHALL support profiling integration tests via a `--test` flag.
 The CLI SHALL allow passing arguments directly to the `samply` process.
 
 #### Scenario: User sets sample rate
-- **WHEN** user runs `cargo samply --samply-args "--rate 2000" --bin app`
+- **WHEN** user runs `cargo samply --samply-args="--rate 2000" --bin app`
 - **THEN** `samply` is invoked with `--rate 2000`
 
 ### Requirement: Shell-Compatible Dry-Run
