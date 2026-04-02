@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `--test <NAME>` flag to profile integration tests and test binaries.
-- `--samply-args <ARGS>` flag to pass arguments directly to `samply` (e.g., `--samply-args "--rate 2000"`).
+- `--samply-args <ARGS>` flag to pass arguments directly to `samply` (e.g., `--samply-args="--rate 2000"`).
 - `-p, --package <PKG>` flag to select a package in a workspace (aligns with standard Cargo conventions).
 - Proactive `samply` installation check before starting the build, providing earlier feedback if `samply` is missing.
 - Test targets are now discoverable via `--list-targets`.

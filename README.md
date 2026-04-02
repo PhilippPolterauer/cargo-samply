@@ -119,7 +119,7 @@ cargo samply --no-default-features
 cargo samply -- arg1 arg2 --flag value
 
 # Pass arguments to samply (e.g., set sample rate)
-# "=" is needed to prevent cargo from trying to parse "--rate 2000"
+# Use "=" so "--rate 2000" is treated as the value of --samply-args
 cargo samply --samply-args="--rate 2000" --bin my-binary
 
 # Run without starting samply (useful for debugging build/target selection)
@@ -159,7 +159,8 @@ cargo samply --samply-args="--rate 2000" --bin my-binary
 cargo samply --samply-args="--rate 2000 --save-only profile.json" --bin my-binary
 ```
 
-Use "=" to prevent cargo from trying to parse the samply arguments.
+Use "=" so the full string is treated as the value of `--samply-args`, even
+when it starts with `--`.
 
 #### Selecting a package in a workspace (`-p, --package`)
 

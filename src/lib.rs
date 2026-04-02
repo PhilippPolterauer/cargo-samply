@@ -49,8 +49,9 @@
 //! ```console
 //! $ cargo samply --samply-args="--rate 2000" --bin my-binary
 //! ```
-//! 
-//! "=" is needed here to prevent cargo from trying to parse "--rate 2000".
+//!
+//! Use `=` so the full `--rate 2000` string is treated as the value of
+//! `--samply-args`, rather than as separate flags.
 //!
 //! ### Workspaces
 //!

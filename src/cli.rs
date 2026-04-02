@@ -105,8 +105,8 @@ pub struct Config {
     pub bench_flag: String,
 
     /// Arguments to pass to samply (e.g. `--samply-args="--rate 2000"`).
-    /// Use "=" to prevent cargo from trying to parse the arguments meant for
-    /// samply.
+    /// Use `=` so the full string is parsed as the value of `--samply-args`,
+    /// even when it starts with `--`.
     #[arg(long)]
     pub samply_args: Option<String>,
 
