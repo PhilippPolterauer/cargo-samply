@@ -34,7 +34,7 @@ clap-cargo = "0.18.3"
 cargo_metadata = "0.23"
 ocli = "0.3.0"
 shell-words = "1.1"
-which = "8.0.0"
+which = "8.0.2"
 
 [profile.samply]
 inherits = "release"
@@ -43,5 +43,5 @@ debug = true
 [dev-dependencies]
 trycmd = "1.0"
 regex = "1.12.3"
-which = { version = "8.0.0", features = ["regex"] }
+which = { version = "8.0.2", features = ["regex"] }
 tempfile = "3"
