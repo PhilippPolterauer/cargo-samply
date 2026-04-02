@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-04-02
+
+### Documentation
+
+- Clarified the `--samply-args="..."` guidance to describe the actual parser behavior more accurately.
+
+### Internal
+
+- Added regression coverage for `--samply-args` values that begin with `--`, so the required `=` form stays exercised in CLI snapshots.
+- Added a tag-driven release workflow that verifies the tag version, runs formatting, clippy, a release build, and tests before publishing to crates.io and creating the GitHub release.
+- Updated release-related dependencies and tooling: `clap` 4.5.60, `clap-cargo` 0.18.3, `which` 8.0.2, `tempfile` 3.26.0, `trycmd` 1.0.1, and `codecov/codecov-action` 6.
+
 ## [0.4.1] - 2025-12-28
 
 ### Documentation

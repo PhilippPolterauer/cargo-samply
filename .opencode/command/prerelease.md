@@ -41,9 +41,11 @@ Track these steps as TODOs and complete them one by one.
 
 3.1 Run `cargo doc --no-deps` to ensure rustdoc builds without warnings.
 
-3.2 If the project uses OpenSpec, run `openspec validate --strict` to ensure all specs are valid.
+3.2 Run `cargo package --locked --allow-dirty` to ensure the crate packages cleanly for crates.io.
 
-3.3 Summarize any issues found and fixes applied. If all checks pass, report "Prerelease checks passed."
+3.3 If the project uses OpenSpec, run `openspec validate --strict` to ensure all specs are valid.
+
+3.4 Summarize any issues found and fixes applied. If all checks pass, report "Prerelease checks passed."
 
 **Reference**
 - See `AGENTS.md` for coding conventions and error handling patterns.

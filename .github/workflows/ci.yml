@@ -1,5 +1,9 @@
-on: push
 name: Continuous integration
+
+on:
+  push:
+    tags-ignore:
+      - "v*"
 
 jobs:
   lint:

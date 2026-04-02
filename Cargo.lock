@@ -123,7 +123,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-samply"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "cargo_metadata",
  "cargo_toml",
