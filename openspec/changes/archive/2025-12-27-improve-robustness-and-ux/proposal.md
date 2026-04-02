@@ -15,7 +15,7 @@ Analysis of the current codebase revealed several issues affecting robustness an
 - **UX**: `--dry-run` now emits properly quoted, copy-pasteable shell commands.
 - **Features**: 
   - Add `--test <NAME>` support.
-  - Allow passing arguments to `samply` (e.g., `cargo samply --samply-args "--rate 2000" ...`).
+  - Allow passing arguments to `samply` (e.g., `cargo samply --samply-args="--rate 2000" ...`).
   - Proactively check for `samply` installation.
 
 ## Impact

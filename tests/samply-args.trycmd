@@ -11,3 +11,16 @@ cargo build '--message-format=json-diagnostic-rendered-ansi' --profile samply --
 [..]record --rate 2000 --save-only profile.json -- [..]target[..]samply[..]samply-args[..]
 
 ```
+
+```console
+$ cargo-samply samply --samply-args "--rate 2000" --dry-run
+? 2
+error: unexpected argument '--rate 2000' found
+
+  tip: to pass '--rate 2000' as a value, use '-- --rate 2000'
+
+Usage: cargo samply [OPTIONS] [TRAILING_ARGUMENTS]...
+
+For more information, try '--help'.
+
+```

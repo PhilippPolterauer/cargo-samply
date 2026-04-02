@@ -47,8 +47,11 @@
 //! You can also pass arguments directly to `samply` itself:
 //!
 //! ```console
-//! $ cargo samply --samply-args "--rate 2000" --bin my-binary
+//! $ cargo samply --samply-args="--rate 2000" --bin my-binary
 //! ```
+//!
+//! Use `=` so the full `--rate 2000` string is treated as the value of
+//! `--samply-args`, rather than as separate flags.
 //!
 //! ### Workspaces
 //!

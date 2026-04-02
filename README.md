@@ -75,7 +75,7 @@ Options:
       --bench <BENCH>              Benchmark target to run (e.g. `cargo samply --bench throughput`)
       --test <TEST>                Test target to run (e.g. `cargo samply --test integration_test`)
       --bench-flag <BENCH_FLAG>    The flag to use when running the benchmark target [default: --bench]
-      --samply-args <SAMPLY_ARGS>  Arguments to pass to samply (e.g. `--samply-args "--rate 2000"`)
+      --samply-args <SAMPLY_ARGS>  Arguments to pass to samply (e.g. `--samply-args="--rate 2000"`)
   -f, --features <FEATURES>        Build features to enable
       --no-default-features        Disable default features
   -v, --verbose                    Print extra output to help debug problems
@@ -119,7 +119,8 @@ cargo samply --no-default-features
 cargo samply -- arg1 arg2 --flag value
 
 # Pass arguments to samply (e.g., set sample rate)
-cargo samply --samply-args "--rate 2000" --bin my-binary
+# Use "=" so "--rate 2000" is treated as the value of --samply-args
+cargo samply --samply-args="--rate 2000" --bin my-binary
 
 # Run without starting samply (useful for debugging build/target selection)
 cargo samply --no-samply
@@ -152,11 +153,14 @@ Pass additional arguments directly to `samply`:
 
 ```bash
 # Set sample rate
-cargo samply --samply-args "--rate 2000" --bin my-binary
+cargo samply --samply-args="--rate 2000" --bin my-binary
 
 # Pass multiple samply options
-cargo samply --samply-args "--rate 2000 --save-only profile.json" --bin my-binary
+cargo samply --samply-args="--rate 2000 --save-only profile.json" --bin my-binary
 ```
+
+Use "=" so the full string is treated as the value of `--samply-args`, even
+when it starts with `--`.
 
 #### Selecting a package in a workspace (`-p, --package`)
 
