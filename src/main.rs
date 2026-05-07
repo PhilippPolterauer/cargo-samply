@@ -10,6 +10,7 @@ mod cli;
 mod error;
 mod util;
 
+use std::env;
 use std::fs;
 use std::io::{self, BufReader};
 use std::mem;
@@ -92,13 +93,14 @@ fn get_bin_path(
     bin_name: &str,
     is_windows: bool,
 ) -> std::path::PathBuf {
+    let target_dir = env::var("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| root.join("target"));
+
     let path = if bin_opt == "--bin" {
-        root.join("target").join(profile).join(bin_name)
+        target_dir.join(profile).join(bin_name)
     } else {
-        root.join("target")
-            .join(profile)
-            .join("examples")
-            .join(bin_name)
+        target_dir.join(profile).join("examples").join(bin_name)
     };
 
     if is_windows {
