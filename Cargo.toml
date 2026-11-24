@@ -41,7 +41,7 @@ inherits = "release"
 debug = true
 
 [dev-dependencies]
-trycmd = "1.0"
+trycmd = "1.1"
 regex = "1.12.3"
 which = { version = "8.0.2", features = ["regex"] }
 tempfile = "3"
